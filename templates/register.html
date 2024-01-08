@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Registration</title>
+</head>
+<body>
+  <div class='card'>
+    <h1>Registration</h1>
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for message in messages %}
+                    <div class="flash-message">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    <form action="/register" method="POST" class='opaque'>
+        <input type="text" name="username" id="username" placeholder="Username" required><br>
+     
+        <input type="password" name="password" id="password" placeholder="password" required><br>
+        <input type="password" name="confirm_password" id="confirm_password" required placeholder="Confirm Password" ><br>
+        <input type="submit" value="Register">
+    </form>
+    <hr>
+    <p class='opaque'>Already have an account? <a href="/">Login</a></p>
+  </div>
+</body>
+ <style>
+    @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300&display=swap');
+* {
+  font-family: 'Rubik', sans-serif;
+  padding: 10px;
+  margin: 10px;;
+}
+      a{
+        color: white;
+        opacity: 1;
+        
+      }
+      h1{
+        color:white;
+        opacity: 1;
+        
+      }
+      hr {
+        padding: 0px;
+        margom:0px;
+      }
+    .button{
+      padding: 2px;
+      margin: 2px;
+      transition: ; 500ms;
+      backdrop-filter: blur(5px);
+      padding: 10px;
+      margin:10px;
+    }
+    button:hover {
+      background-color: #E4E4E4;
+      transition: 500ms;
+      box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
+    }
+    .card {
+      opacity: 0.8;
+      background-color: black;
+      border-radius:10px;
+      z-index: 100;
+      color: black;
+      text-align: center;
+      margin: auto;
+      width: 50%;
+      height:50%
+    }
+    .flex-container {
+      display:flex;
+      align-content: center;
+      justify-content: center;
+    }
+    body{
+      background-color:#d12b26;
+      
+    }
+    .opaque {
+      opacity: 1;
+      color: white;
+    }
+    .flash-messages {
+      color:white;
+    }
+  </style>
+</html>

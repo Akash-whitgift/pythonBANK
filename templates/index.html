@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login/Register - Bank</title>
+</head>
+<body>
+  <div class='flex-container'>
+    <div class='card'>
+      <h1 class='opaque'>Login</h1>
+      <div class="flash-messages">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <ul class="flash">
+              {% for message in messages %}
+                <li>{{ message }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endwith %}
+      </div>
+      <form class='opaque' action="/login" method="POST">
+        <input type="text" name="username" placeholder="Username" required><br>
+        <input type="password" name="password" placeholder="Password" required><br>
+        <input type="submit" value="Login" class='ui'>
+      </form>
+      <hr>
+      <form class='opaque' action="/register" method="POST">
+        <a href='/register'>Don't have an account, Signup?</a>
+      </form>
+    </div>
+  </div>
+</body>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300&display=swap');
+  * {
+    font-family: 'Rubik', sans-serif;
+    padding: 10px;
+    margin: 10px;;
+  }
+  a {
+    color: white;
+    opacity: 1;
+  }
+  h1 {
+    color: white;
+    opacity: 1;
+  }
+  hr {
+    padding: 0px;
+    margin: 0px;
+  }
+  .button {
+    padding: 2px;
+    margin: 2px;
+    transition: 500ms;
+    backdrop-filter: blur(5px);
+    padding: 10px;
+    margin: 10px;
+  }
+  button:hover {
+    background-color: #E4E4E4;
+    transition: 500ms;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
+  }
+  .card {
+    opacity: 0.8;
+    background-color: black;
+    border-radius: 10px;
+    z-index: 100;
+    color: black;
+    text-align: center;
+    margin: auto;
+    width: 50%;
+    height: 50%;
+    color:white;
+  }
+  .flex-container {
+    display: flex;
+    align-content: center;
+    justify-content: center;
+  }
+  body {
+    background-color: #d12b26;
+  }
+  .opaque {
+    opacity: 1;
+  }
+  .flash-messages {
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+  }
+  .flash li {
+    list-style-type: none;
+    margin-bottom: 5px;
+  }
+</style>
+</html>

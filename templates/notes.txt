@@ -1,0 +1,9 @@
+
+def login():
+    if 'username' in session:
+        if session['is_admin'] and not command_active:
+            return redirect('/command-inactive')
+        else:
+            return redirect('/dashboard')
+
+    return render_template('index.html')

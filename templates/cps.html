@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clicks Per Second</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300&display=swap');
+      * {
+  font-family: 'Rubik', sans-serif;
+  
+}
+        body {
+            background-color: #d12b26;
+        }
+
+
+
+        .card {
+            opacity: 0.8;
+            background-color: black;
+            border-radius: 10px;
+            z-index: 100;
+            color: black;
+            text-align: center;
+            margin: auto;
+            width: 50%;
+            padding: 20px;
+        }
+
+        h1 {
+            color: white;
+        }
+
+        label {
+            color: white;
+        }
+
+        .ui {
+            background-color: #dbdada;
+            border: none;
+            color: #000000;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            border-radius: 10px;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            padding: auto;
+            margin: 10px;
+            margin-right: 10px;
+            transition: 300ms;
+            width: 45vw;
+            height: 50vh;
+        }
+        p {
+          color: white;
+        }
+        h2 {
+          color: white;
+        }
+        .ui:hover {
+            color: #ffffff;
+            transition: 0.7s;
+            background-color: #189cd9;
+            box-shadow: 0 12px 6px 0 rgba(255, 255, 255, 0.10), 0 17px 16px 0 rgba(73, 73, 73, 0.50);
+        }
+    </style>
+</head>
+<body>
+  <div class='card'>
+  <h2>Welcome, {{ session['username'] }}!</h2>
+  <p>Click the button as fast as you can within 5 seconds!</p>
+  <p>Time left: <span id="timer">5</span> seconds</p>
+  <p>Clicks: <span id="clicks">0</span></p>
+  <button id="clickButton" class='ui' disabled>Click Me!</button>
+
+  <script>
+ var clickCount = 0;
+var clickButton = document.getElementById('clickButton');
+clickButton.disabled = false;
+var clicksSpan = document.getElementById('clicks');
+var timerSpan = document.getElementById('timer');
+var timeLeft = 5;
+
+var timerInterval = setInterval(function() {
+  timeLeft--;
+  timerSpan.textContent = timeLeft;
+
+  if (timeLeft <= 0) {
+    clearInterval(timerInterval);
+    clickButton.disabled = true;
+
+    // Set the CPS value before submitting the form
+    document.getElementById('cpsInput').value = clickCount;
+
+    // Submit the form after 5 seconds
+    document.forms["cpsForm"].submit();
+  }
+}, 1000);
+
+clickButton.addEventListener('click', function() {
+  clickCount++;
+  clicksSpan.textContent = clickCount;
+});
+  </script>
+  
+<form id="cpsForm" action="/cps-process" method="POST">
+    <input type="hidden" name="username"  value="{{ session['username'] }}">
+    <input type="hidden" id="cpsInput" name="cps"  value="">
+</form>
+  </div>
+</body>
+</html>

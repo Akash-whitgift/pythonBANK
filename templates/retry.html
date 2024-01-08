@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quiz Retry</title>
+</head>
+<body>
+    <h1>Incorrect Answer!</h1>
+    <p>Please try again.</p>
+    <form action="/quiz" method="POST">
+        <input type="hidden" name="question" value="{{ question }}">
+        {% for option in options %}
+            <input type="radio" name="answer" value="{{ option }}"> {{ option }}<br>
+        {% endfor %}
+        <br>
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>

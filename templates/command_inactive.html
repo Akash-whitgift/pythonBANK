@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Control</title>
+</head>
+<body>
+    <h1>Admin Control</h1>
+    <form method="POST" action="{% if command_active %}/admin-control{% else %}/command-inactive{% endif %}">
+        <label for="command_active">Toggle Command Control:</label>
+        <input type="checkbox" id="command_active" name="command_active" {% if command_active %}checked{% endif %}>
+        <br>
+        <input type="submit" value="Save">
+    </form>
+    <hr>
+    <a href='/dashboard'><button>Back To dashboard</button></a>
+</body>
+</html>

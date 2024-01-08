@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Double or nothing!</title>
+</head>
+<body>
+  <div class='card'>
+    <h1>Double or nothing!</h1>
+    <h2>Each entry is £2</h2>
+    <p>I am thinking of a number between 0 and 100, what is the number</p>
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div>
+                {% for message in messages %}
+                    <p>{{ message }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <form action="/don" method="POST">
+        <input type="number" name="guess" placeholder="Enter your guess" required class='ui'><br>
+        <input type="submit" value="Play" class='ui'>
+    </form>
+    <p><a href='/dashboard'><button class='ui'>Back to dashboard</button></a></p></div>
+</body>
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300&display=swap');
+* {
+  font-family: 'Rubik', sans-serif;
+  
+}
+.ui {
+background-color: #dbdada;
+border: none;
+color: #000000;
+padding: 12px 24px;
+font-size: 16px;
+font-weight: bold;
+text-align: center;
+text-decoration: none;
+display: inline-block;
+border-radius: 10px;
+box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
+backdrop-filter: blur(5px);
+padding: auto;
+margin: 10px;
+transition: 300ms;
+
+}
+.button {
+background-color: #dbdada;
+border: none;
+color: #000000;
+padding: 12px 24px;
+font-size: 16px;
+font-weight: bold;
+text-align: center;
+text-decoration: none;
+display: inline-block;
+border-radius: 10px;
+box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
+backdrop-filter: blur(5px);
+padding: auto;
+margin: 10px;
+transition: 300ms;
+}
+.ui:hover {
+ color: #ffffff;
+ transition: 0.7s;
+ background-color: #189cd9 ;
+ box-shadow: 0 12px 6px 0 rgba(255, 255, 255, 0.10),0 17px 16px 0 rgba(73, 73, 73, 0.50);
+}  
+  body {
+    background-color: #d12b26;
+  }
+   h1 {
+     color:white;
+   }
+   h2 {
+     color:white;
+   }
+   h3 {
+     color:white;
+   }
+      p {
+        color:white;
+      }
+   .card {
+    opacity: 0.8;
+    background-color: black;
+    border-radius: 10px;
+    z-index: 100;
+    color: black;
+    text-align: center;
+    margin: auto;
+    width: 50%;
+    height: 50%;
+  }
+  </style>
+</html>

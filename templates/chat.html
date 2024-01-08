@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Google Bard</title>
+</head>
+<body>
+<h1>Google Bard</h1>
+<form action="/chat" method="get">
+<input type="text" name="query" placeholder="Enter your query">
+<input type="submit" value="Search">
+</form>
+<div id="response"></div>
+<script>
+var query = document.getElementById("query").value;
+var response = document.getElementById("response");
+
+// Send the query to the Google Bard API
+var bard = new BardAPI();
+var result = bard.query(query);
+
+// Render the response to the user
+response.innerHTML = result;
+</script>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Messenger</title>
+      <script>
+        // Request permission to display notifications
+        if (Notification.permission !== 'granted') {
+            Notification.requestPermission();
+        }
+
+        // Function to display a notification
+        function displayNotification(title, message) {
+            if (Notification.permission === 'granted') {
+                new Notification(title, {
+                    body: message,
+                });
+            }
+        }
+
+        // Check for new messages and display a notification
+        {% if new_message %}
+            displayNotification('New Message from, '{{sender}}', '{{ new_message }}');
+        {% endif %}
+      </script>
+</head>
+<body>
+  <div class='card'>
+     <h1>Messaging</h1>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="/message">
+        <label for="recipient">Recipient:</label>
+        <select name="recipient" id="recipient">
+            {% for user in users %}
+                <option value="{{ user.username }}">{{ user.username }}</option>
+            {% endfor %}
+        </select><br><br>
+
+        <label for="message">Message:</label>
+        <textarea name="message" id="message" rows="5" cols="30"></textarea><br><br>
+
+        <input type="submit" class='ui' value="Send">
+    </form>
+    <p><a href='/dashboard'><button class='ui'>Back to Dashboard</button></a><a href='/message'><button class='ui'>Refresh</button></a></p>
+    <form method="GET" action="/message">
+        <label for="recipient_filter">Filter Messages:</label>
+        <select name="recipient_filter" id="recipient_filter">
+            <option value="">All</option>
+            {% for user in users %}
+                <option value="{{ user.username }}"
+                        {% if user.username == recipient_filter %}selected{% endif %}>{{ user.username }}</option>
+            {% endfor %}
+        </select>
+        <input type="submit" value="Filter">
+    </form>
+
+    <h2>Message History</h2>
+    <div class='messagecard'>
+    {% for message in message_history %}
+        {% if message.recipient == session['username'] %}
+            {% if recipient_filter == '' or message.sender == recipient_filter %}
+                <div class="message">
+                    <p><strong>From:</strong> {{ message.sender }}</p>
+                    <p><strong>To:</strong> {{ message.recipient }}</p>
+                    <p><strong>Message:</strong> {{ message.message }}</p>
+                    <p><strong>Timestamp:</strong> {{ message.timestamp }}</p>
+                </div>
+            {% endif %}
+        {% elif message.sender == session['username'] %}
+            {% if recipient_filter == '' or message.recipient == recipient_filter %}
+                <div class="message">
+                    <p><strong>From:</strong> You</p>
+                    <p><strong>To:</strong> {{ message.recipient }}</p>
+                    <p><strong>Message:</strong> {{ message.message }}</p>
+                    <p><strong>Timestamp:</strong> {{ message.timestamp }}</p>
+                </div>
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+    </div>
+  </div>
+</body>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300&display=swap');
+    * {
+        font-family: 'Rubik', sans-serif;
+    }
+    
+    label {
+        color: white;
+    }
+
+    .ui {
+        background-color: #dbdada;
+        border: none;
+        color: #000000;
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: bold;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        border-radius: 10px;
+        box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(5px);
+        padding: auto;
+        margin: 10px;
+        transition: 300ms;
+    }
+    .messagecard {
+      max-height: 50vh;
+      overflow-y:scroll;
+    }
+    .button {
+        background-color: #dbdada;
+        border: none;
+        color: #000000;
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: bold;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        border-radius: 10px;
+        box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(5px);
+        padding: auto;
+        margin: 10px;
+        transition: 300ms;
+    }
+
+    .ui:hover {
+        color: #ffffff;
+        transition: 0.7s;
+        background-color: #189cd9 ;
+        box-shadow: 0 12px 6px 0 rgba(255, 255, 255, 0.10),0 17px 16px 0 rgba(73, 73, 73, 0.50);
+    }  
+   
+    body {
+        background-color: #d12b26;
+    }
+   
+    h1 {
+        color: white;
+        margin: 5px;
+    }
+   
+    h2 {
+        color: white;
+    }
+   
+    h3 {
+        color: white;
+    }
+   
+    .card {
+        opacity: 0.8;
+        background-color: black;
+        border-radius: 10px;
+        z-index: 100;
+        color: black;
+        text-align: center;
+        margin: auto;
+        width: 50%;
+        height: 50%;
+        padding: 5px;
+    }
+
+    .message {
+        overflow:scroll;
+        background-color: #dbdada;
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    ul {
+      color:white;
+    }
+</style>
+</html>

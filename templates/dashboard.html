@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+ 
+</head>
+<body>
+  
+  <div class='card'>
+    <h1>Welcome, {{ username }}!</h1>
+    <h2>Your balance: {{"£{:,.2f}".format(balance) }}</h2>
+    <h3>Choose an action:</h3>
+    <ul>
+        <p><a href="/don"><button class='ui'>Go to double or nothing</button></a>
+        <a href="/transfer"><button class='ui' >Go to Transfer</button></a><a href='/quiz'><button class='ui'>Quiz</button></a></p>
+      <p><a href='/higher-lower'><button class='ui'>Go to Higher or lower</button></a><a href='/cps'><button class='ui'>Go to Clicks per second</button></a>
+        <p><a href='/leaderboard'><button class='ui'>Leaderboard</button></a>    
+{% if is_admin %}
+          <a href='/message'><button class='ui' class='ui'>Messages (not functional)</button></a>
+    <a href='/admin-control'><button class='ui'>Admin Control</button></a>
+{% endif %}
+<a href='/settings'><button class='ui'>settings</button></a></p>
+          <p><form action="/signout" method="POST">
+        <button class='ui' type="submit">Sign out</button>
+          
+          </form></p>
+    </ul>
+<hr>
+{% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+  </div>
+</body>
+ <style>
+    @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300&display=swap');
+
+* {
+  font-family: 'Rubik', sans-serif;
+  
+}
+li {
+  color: white;
+}
+.ui {
+background-color: #dbdada;
+border: none;
+color: #000000;
+padding: 12px 24px;
+font-size: 16px;
+font-weight: bold;
+text-align: center;
+text-decoration: none;
+display: inline-block;
+border-radius: 10px;
+box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
+backdrop-filter: blur(5px);
+padding: auto;
+margin: 10px;
+transition: 300ms;
+
+}
+.button {
+background-color: #dbdada;
+border: none;
+color: #000000;
+padding: 12px 24px;
+font-size: 16px;
+font-weight: bold;
+text-align: center;
+text-decoration: none;
+display: inline-block;
+border-radius: 10px;
+box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
+backdrop-filter: blur(5px);
+padding: auto;
+margin: 10px;
+transition: 300ms;
+}
+.ui:hover {
+ color: #ffffff;
+ transition: 0.7s;
+ background-color: #189cd9 ;
+ box-shadow: 0 12px 6px 0 rgba(255, 255, 255, 0.10),0 17px 16px 0 rgba(73, 73, 73, 0.50);
+}  
+   
+   body {
+    background-color: #d12b26;
+  }
+   h1 {
+     color:white;
+     margin:5px;
+   }
+   h2 {
+     color:white;
+   }
+   h3 {
+     color:white;
+   }
+   .card {
+    opacity: 0.8;
+    background-color: black;
+    border-radius: 10px;
+    z-index: 100;
+    color: black;
+    text-align: center;
+    margin: auto;
+    width: 50%;
+    height: 50%;
+    padding:5px;
+  }
+   .hidden {
+     visibility:hidden;
+     width: 0;
+     height: 0;
+   }
+  </style>
+</html>
