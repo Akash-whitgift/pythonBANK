@@ -507,26 +507,51 @@ def write_to_csv(leaderboard):
 
 #Transfer money between accounts
 
+def get_account_details(recipient):
+    conn = psycopg2.connect(
+      dbname=os.environ['PGDATABASE'],
+      user=os.environ['PGUSER'],
+      password= os.environ['PGPASSWORD'],
+      host=os.environ['PGHOST']
+    )
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM accounts WHERE account_number = ?", (recipient,))
+    account = cur.fetchone()
+    if account:
+        return account  # Return the account details if found
+    else:
+        return None  # Return None if the account is not found
 
 def transfer_money(sender, recipient, amount):
   sender_balance = get_balance(sender)
   recipient_balance = get_balance(recipient)
+
+  if recipient_balance is None:
+      flash("Recipient account does not exist", 'error')
+      return redirect('/transfer')
+
   if sender == recipient:
-    flash("Error")
-    return redirect('/transfer')
+      flash("Error in recipient", 'error')
+      return redirect('/transfer')
+
   if sender_balance < amount:
-    flash("Insufficient balance", 'error')
-    return redirect('/transfer')
+      flash("Insufficient balance", 'error')
+      return redirect('/transfer')
 
-  sender_balance -= amount
-  recipient_balance += amount
+  # Check if recipient account exists in the database
+  recipient_account_details = get_account_details(recipient)
+  if recipient_account_details is not None:
+      sender_balance -= amount
+      recipient_balance += amount
+      update_balance(sender, sender_balance)
+      update_balance(recipient, recipient_balance)
+      flash("Money transfer successful", 'success')
+      time.sleep(1)
+      return redirect('/transfer')
+  else:
+      flash("Recipient account does not exist", 'error')
+      return redirect('/transfer')
 
-  update_balance(sender, sender_balance)
-  update_balance(recipient, recipient_balance)
-
-  flash("Money transfer successful", 'success')
-  time.sleep(1)
-  return redirect('/transfer')
 
 
 #Double or nothing system (Random number and Comparison)
@@ -820,9 +845,12 @@ def check_banned():
     cur.execute("SELECT banned_status FROM users WHERE username = %s", (username,))
     result = cur.fetchone()
 
-    if result and result[0]:  # Assuming banned_status is a boolean or integer field
+    if result and result[0]:
+      session['is_banned'] = True
       return render_template('delete_account.html')  # Create a template for account deletion
     else:
+      session['is_banned'] = False
+
       return redirect('/dashboard')  # Redirect to the dashboard if the user is not banned
 
 #Delete account admin DOES NOT WORK
@@ -1025,16 +1053,23 @@ def message():
 
 @app.route('/dashboard')
 def dashboard():
-  conn = psycopg2.connect(
-      dbname=os.environ['PGDATABASE'],
-      user=os.environ['PGUSER'],
-      password= os.environ['PGPASSWORD'],
-      host=os.environ['PGHOST']
-  )
-  cur = conn.cursor()
+
   if 'username' not in session:
     return redirect('/')
+  conn = psycopg2.connect(
+    dbname=os.environ['PGDATABASE'],
+    user=os.environ['PGUSER'],
+    password= os.environ['PGPASSWORD'],
+    host=os.environ['PGHOST']
+  )
+  cur = conn.cursor()
+  username = session.get('username')
+  cur.execute("SELECT banned_status FROM users WHERE username = %s", (username,))
+  result = cur.fetchone()
 
+  if result and result[0]:
+    session['is_banned'] = True
+    return redirect('/check-banned')
   username = session['username']
   balance = get_balance(username)
   is_admin = check_admin_status(username)
@@ -1049,6 +1084,9 @@ def dashboard():
 def quiz():
   if 'username' not in session:
     return redirect('/')
+  is_banned = session.get('is_banned') 
+  if is_banned:
+      return redirect('/check-banned')
 
   username = session['username']
   user = get_user_by_username(username)
@@ -1080,7 +1118,9 @@ def quiz():
 def transfer():
   if 'username' not in session:
     return redirect('/')
-
+  is_banned = session.get('is_banned') 
+  if is_banned:
+      return redirect('/check-banned')
   if request.method == 'GET':
     return render_template('transfer.html')
 
@@ -1103,7 +1143,9 @@ def command_inactive():
 def play_don():
   if 'username' not in session:
     return redirect('/')
-
+  is_banned = session.get('is_banned') 
+  if is_banned:
+      return redirect('/check-banned')
   if request.method == 'GET':
     return render_template('don.html')
 
@@ -1182,6 +1224,9 @@ def admin_control():
 def cps():
   if 'username' in session:
     return render_template('cps.html')
+    is_banned = session.get('is_banned') 
+    if is_banned:
+        return redirect('/check-banned')
   else:
     return redirect('/')
 
@@ -1230,6 +1275,9 @@ def cps_process():
 
 @app.route('/clicks-leaderboard')
 def clicks_leaderboard():
+  is_banned = session.get('is_banned') 
+  if is_banned:
+      return redirect('/check-banned')
   conn = psycopg2.connect(
       dbname=os.environ['PGDATABASE'],
       user=os.environ['PGUSER'],
