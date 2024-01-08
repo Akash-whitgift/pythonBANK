@@ -515,7 +515,7 @@ def get_account_details(recipient):
       host=os.environ['PGHOST']
     )
     cur = conn.cursor()
-    cur.execute("SELECT * FROM accounts WHERE account_number = ?", (recipient,))
+    cur.execute("SELECT * FROM users WHERE username = %s", (recipient,))
     account = cur.fetchone()
     if account:
         return account  # Return the account details if found
@@ -665,6 +665,9 @@ def login():
 def play_higher_lower():
   if 'username' not in session:
     return redirect('/')
+  is_banned = session.get('is_banned') 
+  if is_banned:
+      return redirect('/check-banned')
   if request.method == 'GET':
     return render_template('Higherlower.html',
                            messages=flask.get_flashed_messages())
