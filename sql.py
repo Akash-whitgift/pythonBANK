@@ -2,6 +2,7 @@
 import psycopg2
 import os
 import csv
+import datetime
 # Connect to the PostgreSQL database
 conn = psycopg2.connect(
     dbname=os.environ['PGDATABASE'],
@@ -14,9 +15,9 @@ cps = 0
 # Create a cursor object using the cursor() method
 cursor = conn.cursor()
 cursor.execute("""
-UPDATE flags SET admin_only_mode = TRUE
+SELECT * FROM users
 """)
-
+print(datetime.datetime.utcnow())
 # Commit the changes to the database
 conn.commit()
 

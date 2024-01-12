@@ -74,7 +74,7 @@
             text-align: center;
             margin: auto;
             width: 70%;
-            height: 50%;
+            height: 80%;
             color:white;
         }
 
@@ -87,7 +87,10 @@
         body {
             background-color: #d12b26;
         }
-
+        .user-details {
+          min-height: 600px;
+          height: 70vh;
+        }
         .opaque {
             opacity: 1;
         }
@@ -182,6 +185,8 @@
                     <p>Admin Status: {% if user_lookup.is_admin %}Admin{% else %}Not Admin{% endif %}</p>
                     <p>Current Balance: {{"£{:,.2f}".format(user_lookup.balance) }}</p>
               <p>Banned status: {% if user_lookup.banned %}Banned{% else %}Not Banned{% endif %}</p>
+              <p>Last login: {{ user_lookup.login }}</p>
+              <p>Account Created: {{ user_lookup.created }}</p>
               <h2>Update Balance</h2>
                 <form action="/admin-control/update-balance" method="POST">
                         <input type="hidden" name="username" value="{{ user_lookup.username }}">

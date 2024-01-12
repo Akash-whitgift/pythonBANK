@@ -11,7 +11,6 @@ import csv
 import os
 import bcrypt
 import datetime
-import _strptime
 import psycopg2
 conn = psycopg2.connect(
     dbname=os.environ['PGDATABASE'],
@@ -23,6 +22,7 @@ conn.close()
 app = Flask(__name__)
 key = str(random.randrange(16**32))
 app.secret_key = key
+app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(minutes=360)
 CONFIG_FILE = 'config.ini'
 message_history = []
 leaderboard = []
@@ -190,7 +190,13 @@ def delete_account(username):
 @app.route('/delete-account', methods=['POST'])
 def delete_account_for_user():
     username = session['username']
-
+    conn = psycopg2.connect(
+      dbname=os.environ['PGDATABASE'],
+      user=os.environ['PGUSER'],
+      password= os.environ['PGPASSWORD'],
+      host=os.environ['PGHOST']
+    )
+    cur = conn.cursor()
     # Remove the user's data from the database
     cur.execute("DELETE FROM users WHERE username = %s", (username,))
     # Commit the changes to the database
@@ -700,7 +706,7 @@ def user_lookup():
           host=os.environ['PGHOST']
       )
       cur = conn.cursor()
-      cur.execute("SELECT username, hashed_password, admin_status, balance, banned_status FROM users WHERE username = %s", (lookup_username,))
+      cur.execute("SELECT username, hashed_password, admin_status, balance, banned_status, account_created, last_login FROM users WHERE username = %s", (lookup_username,))
       user = cur.fetchone()
 
 
@@ -711,7 +717,9 @@ def user_lookup():
           'password': user[1],  # Note: This is the hashed password, not the plaintext password
           'is_admin': user[2],
           'balance': user[3],
-          'banned': user[4]
+          'banned': user[4],
+          'created': user[5],
+          'login': user[6]
         }
         # Fetch all users if needed for the admin-control page
         conn = psycopg2.connect(
@@ -721,10 +729,10 @@ def user_lookup():
             host=os.environ['PGHOST']
         )
         cur = conn.cursor()
-        cur.execute("SELECT username, hashed_password, admin_status, balance, banned_status FROM users")
+        cur.execute("SELECT username, hashed_password, admin_status, balance, banned_status, account_created, last_login FROM users")
         users = cur.fetchall()
         # Convert the list of tuples into a list of dictionaries for the template
-        users = [{'username': u[0], 'password': u[1], 'is_admin': u[2], 'balance': u[3], 'banned': u[4]} for u in users]
+        users = [{'username': u[0], 'password': u[1], 'is_admin': u[2], 'balance': u[3], 'banned': u[4], 'created':u[5], 'login':u[6]} for u in users]
         return render_template('admin-control.html',
                                users=users,
                                admin_only_mode=admin_only_mode,
@@ -808,7 +816,7 @@ def user_login():
   cur = conn.cursor()
   cur.execute("SELECT hashed_password, salt, admin_status FROM users WHERE username = %s", (username,))
   result = cur.fetchone()
-  cur.close()
+  
 
   if result is None:
     flash('Invalid username', 'error')
@@ -823,6 +831,10 @@ def user_login():
   if bcrypt.checkpw(password.encode(), hashed_password.encode()):
     session['username'] = username
     session['is_admin'] = is_admin
+    cur.execute('UPDATE users SET last_login = %s WHERE username = %s', (datetime.datetime.utcnow(), username))
+    conn.commit()
+    print(datetime.datetime.utcnow())
+    cur.close()
     flash('Login successful', 'success')
     return redirect('/check-banned')
   else:
@@ -934,8 +946,8 @@ def register():
   )
   cur = conn.cursor()
   cur.execute(
-    "INSERT INTO users (username, hashed_password, salt, admin_status, balance, banned_status, cps) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-    (username, hashed_password, salt, False, 100, False, 0)
+    "INSERT INTO users (username, hashed_password, salt, admin_status, balance, banned_status, cps, account_created) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+    (username, hashed_password, salt, False, 100, False, 0, datetime.datetime.utcnow())
   )
   conn.commit()
 
