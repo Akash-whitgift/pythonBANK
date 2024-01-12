@@ -1,8 +1,28 @@
+<!-- admin-control.html -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>Admin Control</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script>
+      function filterItems() {
+          var input, filter, ul, li, a, i, txtValue;
+          input = document.getElementById('searchUsers');
+          filter = input.value.toUpperCase();
+          ul = document.getElementById('userList');
+          li = ul.getElementsByTagName('li');
+
+          for (i = 0; i < li.length; i++) {
+              a = li[i].getElementsByTagName('a')[0];
+              txtValue = a.textContent || a.innerText;
+              if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                  li[i].style.display = '';
+              } else {
+                  li[i].style.display = 'none';
+              }
+          }
+      }
+  </script>
 </head>
 <body>
     <div class='card'>
@@ -13,112 +33,21 @@
             <input type="checkbox" id="admin_only_mode" name="admin_only_mode" {% if admin_only_mode %}checked{% endif %}>
             <button class='ui' type="submit">Save Changes</button>
         </form>
-<hr>
-        <h2>Promotion / demotion</h2>
+        <hr>
 
-        <div class="user-list">
-            <ul>
+        <h3>Manage Users</h3>
+        <label for="searchUsers">Search Users:</label>
+        <input type="text" id="searchUsers" oninput="filterItems()" placeholder="Enter username">
+        <div class='logs' style='max-height: 300px; overflow-y: auto; list-style:none;'>
+            <ul id='userList'>
                 {% for user in users %}
-                <li>
-                    {{ user.username }}
-                    {% if user.is_admin %}
-                    (Admin)
-                    {% endif %}
-                  
-                    {% if user.username not in ['admin', 'Arjun'] %}
-                    <form action="/admin-control" method="POST" style="display: inline;">
-                        <input type="hidden" name="username" value="{{ user.username }}">
-                        <select name="action">
-                            <option value="promote">Promote</option>
-                            {% if user.is_admin %}
-                            <option value="demote">Demote</option>
-                            {% endif %}
-                        </select>
-                        <button type="submit">Submit</button>
-                    </form>
-                    {% endif %}
-                    {% if user.username not in ['admin', 'Arjun'] %}
-                    <form action="/admin-control/delete-account" method="POST" onsubmit="return confirm('Are you sure you want to delete this account?');" style="display: inline;">
-                        <input type="hidden" name="username" value="{{ user.username }}">
-                        <button type="submit" class="button">Delete</button>
-                    </form>
-                    {% endif %}
-                </li>
+                    <li>
+                        <a href="{{ url_for('admin_user_actions', username=user['username']) }}" class='ui' style="text-align: left;">{{ user['username'] }}</a>
+                    </li>
                 {% endfor %}
             </ul>
         </div>
         <hr>
-        <div class="user-list">
-            <h2>User Lookup</h2>
-            {% if session['username'] in ['admin', 'Arjun'] %}
-                <form action="/admin-control/user-lookup" method="POST">
-                    <label for="lookup_username">Username:</label>
-                    <input type="text" id="lookup_username" name="lookup_username" required>
-                    <button class="ui" type="submit">Lookup User</button>
-                </form>
-            {% endif %}
-            <div id="user-details">
-                {% with messages = get_flashed_messages() %}
-                    {% if messages %}
-                        <div class="flash-messages">
-                            <ul class="flash">
-                                {% for message in messages %}
-                                    <li>{{ message }}</li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    {% endif %}
-                {% endwith %}
-                {% if user_lookup %}
-                    <h3>User Details:</h3>
-                    <p>Username: {{ user_lookup.username }}</p>
-              
-                    <p>Admin Status: {% if user_lookup.is_admin %}Admin{% else %}Not Admin{% endif %}</p>
-                    <p>Current Balance: {{"£{:,.2f}".format(user_lookup.balance) }}</p>
-              <p>Banned status: {% if user_lookup.banned %}Banned{% else %}Not Banned{% endif %}</p>
-              <p>Last login: {{ user_lookup.login }}</p>
-              <p>Account Created: {{ user_lookup.created }}</p>
-              <h2>Update Balance</h2>
-                <form action="/admin-control/update-balance" method="POST">
-                        <input type="hidden" name="username" value="{{ user_lookup.username }}">
-
-                        <label for="amount">Amount:</label>
-                        <input type="number" id="amount" name="amount" required>
-
-                        <label for="operation">Operation:</label>
-                        <select name="operation" id="operation">
-                            <option value="increase">Increase</option>
-                            <option value="decrease">Decrease</option>
-                        </select>
-
-                        <button class="ui" type="submit">Update Balance</button>
-                    </form>
-                {% endif %}
-            </div>
-        </div>
-      <p><form method="POST" action="/admin-control/update-banned-users">
-    <label for="username">Username:</label>
-    <input type="text" id="username" name="username" required>
-    
-    <label for="action">Action:</label>
-    <select id="action" name="action" required>
-        <option value="add">Add to Banned Users</option>
-        <option value="remove">Remove from Banned Users</option>
-    </select>
-    
-    <button type="submit">Submit</button>
-</form>
-</p>
-        <hr>
-      <div class='logs'>
-      <h3>View User Logs</h3>
-      <ul>
-          {% for user in users %}
-              <li><a href="{{ url_for('view_user_logs', username=user['username']) }}"><button class='ui'>{{ user['username'] }}</button></a></li>
-          {% endfor %}
-      </ul>
-      </div>
-      <hr>
         <a href='/dashboard'><button class='ui'>Back To dashboard</button></a>
     </div>
 </body>

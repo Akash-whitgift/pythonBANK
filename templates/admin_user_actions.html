@@ -1,0 +1,49 @@
+<!-- templates/admin_user_actions.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Actions - {{ user.username }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="card">
+        <h1>User Actions - {{ user.username }}</h1>
+        <p>Username: {{ user.username }}</p>
+        <p>Admin Status: {% if user.is_admin %}Admin{% else %}Not Admin{% endif %}</p>
+        <p>Current Balance: {{ user.balance }}</p>
+        <p>Banned Status: {% if user.banned %}Banned{% else %}Not Banned{% endif %}</p>
+        <p>Last Login: {{ user.login }}</p>
+        <p>Account Created: {{ user.created }}</p>
+      <p><a href="{{ url_for('view_user_logs', username=user['username']) }}"><button class='ui'>View user Logs</button></a></p>
+      
+        <h2>User Management</h2>
+        <form action="/admin-control/update-balance" method="POST">
+            <input type="hidden" name="username" value="{{ user.username }}">
+            <label for="amount">Amount:</label>
+            <input type="number" id="amount" name="amount" required>
+            <label for="operation">Operation:</label>
+            <select name="operation" id="operation">
+                <option value="increase">Increase</option>
+                <option value="decrease">Decrease</option>
+            </select>
+            <button class="ui" type="submit">Update Balance</button>
+        </form>
+
+        <form action='admin_control/update-banned-users' method="POST">
+            <input type="hidden" name="username" value="{{ user.username }}">
+            <label for="action">Action:</label>
+            <select id="action" name="action" required>
+                <option value="add">Add to Banned Users</option>
+                <option value="remove">Remove from Banned Users</option>
+            </select>
+            <button type="submit">Submit</button>
+        </form>
+
+        <!-- Add more user management actions as needed -->
+
+        <a href="{{ url_for('admin_control') }}"><button class="ui">Back to Admin Control</button></a>
+    </div>
+</body>
+</html>

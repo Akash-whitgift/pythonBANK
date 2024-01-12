@@ -790,6 +790,40 @@ def user_lookup():
         flash(f"User '{lookup_username}' not found.", 'error')
         return redirect('/admin-control')
 
+# app.py
+@app.route('/admin/user-actions/<username>', methods=['GET', 'POST'])
+def admin_user_actions(username):
+    if 'username' not in session or session['username'] not in ['admin', 'Arjun']:
+        flash('Access denied', 'error')
+        return redirect('/')
+
+    conn = psycopg2.connect(
+        dbname=os.environ['PGDATABASE'],
+        user=os.environ['PGUSER'],
+        password=os.environ['PGPASSWORD'],
+        host=os.environ['PGHOST']
+    )
+    cur = conn.cursor()
+    cur.execute("SELECT username, hashed_password, admin_status, balance, banned_status, account_created, last_login FROM users WHERE username = %s", (username,))
+    user = cur.fetchone()
+
+    if user:
+        user_details = {
+            'username': user[0],
+            'password': user[1],  # Note: This is the hashed password, not the plaintext password
+            'is_admin': user[2],
+            'balance': user[3],
+            'banned': user[4],
+            'created': user[5],
+            'login': user[6]
+        }
+
+        return render_template('admin_user_actions.html', user=user_details)
+    else:
+        flash(f"User '{username}' not found.", 'error')
+        return redirect('/admin-control')
+
+
 def get_all_user_info(username):
     conn = psycopg2.connect(
         dbname=os.environ['PGDATABASE'],
