@@ -456,7 +456,50 @@ def check_credentials(username, password):
   return False
 
 
+def log_activity(username,action):
+  conn = psycopg2.connect(
+    dbname=os.environ['PGDATABASE'],
+    user=os.environ['PGUSER'],
+    password= os.environ['PGPASSWORD'],
+    host=os.environ['PGHOST']
+  )
+  cur = conn.cursor()
+  cur.execute("INSERT INTO logs (username, activity, time) VALUES (%s, %s, %s);", (username, action, datetime.datetime.utcnow()))
+  conn.commit()
+
 #Update Clicks per second leaderboard
+def fetch_user_logs(username):
+  conn = psycopg2.connect(
+      dbname=os.environ['PGDATABASE'],
+      user=os.environ['PGUSER'],
+      password=os.environ['PGPASSWORD'],
+      host=os.environ['PGHOST']
+  )
+  cur = conn.cursor()
+  cur.execute("SELECT time, activity FROM logs WHERE username = %s ORDER BY time DESC;", (username,))
+  logs = cur.fetchall()
+  formatted_logs = [(log[0].strftime('%Y-%m-%d %H:%M:%S'), log[1]) for log in logs]
+  return formatted_logs
+
+@app.route('/admin-control/view-logs/<username>')
+def view_user_logs(username):
+    if not check_admin_status(session['username']):
+      flash('Access denied. You must be an admin to access this page.', 'error')
+      return redirect('/dashboard')
+
+    logs = fetch_user_logs(username)
+    return render_template('admin_view_logs.html', logs=logs, username=username)
+  
+@app.route('/logs')
+def user_logs():
+    if 'username' not in session:
+        flash('You must be logged in to view logs', 'error')
+        return redirect('/')
+
+    username = session['username']
+    logs = fetch_user_logs(username)
+    print(logs)
+    return render_template('logs.html', logs=logs)
 
 
 def update_leaderboard(data):
@@ -551,6 +594,7 @@ def transfer_money(sender, recipient, amount):
       recipient_balance += amount
       update_balance(sender, sender_balance)
       update_balance(recipient, recipient_balance)
+      log_activity(sender, f"Transferred {amount} to {recipient}")
       flash("Money transfer successful", 'success')
       time.sleep(1)
       return redirect('/transfer')
@@ -574,10 +618,12 @@ def don(username, guess):
   if guess == random_number:
     balance = balance * 2 - 2
     update_balance(username, balance)
+    log_activity(username, f"Double or nothing: Won {balance}")
     flash(f"You beat the odds! Your balance is now £{balance}", 'success')
   else:
     balance -= 2
     update_balance(username, balance)
+    log_activity(username, f"Double or nothing: Lost {balance}")
     flash(
       f"Better luck next time! The number was {random_number}. Your balance is now £{balance}",
       'error')
@@ -602,12 +648,14 @@ def higherlower(username, guess, chosen):
     if guess > num:
       balance = math.floor(balance + 50)
       update_balance(username, balance)
+      log_activity(username, f"Higher or lower: Won {balance}")
       flash(
         f"Correct {guess} is higher than {num}, your balance is now £{balance}",
         'success')
     else:
       balance -= 1
       update_balance(username, balance)
+      log_activity(username, f"Higher or lower: Lost {balance}")
       flash(
         f"Unfortunately {guess} is not higher than {num}, your balance is now £{balance}",
         'error')
@@ -624,6 +672,7 @@ def higherlower(username, guess, chosen):
       flash(
         f"Unfortunately {guess} is not lower than {num}, your balance is now £{balance}",
         'error')
+      log_activity(username, f"Higher or lower: Lost {balance}")
 
   return redirect('/higher-lower')
 
@@ -1308,6 +1357,8 @@ def cps_process():
       cur.close()
       return redirect('/check-banned')
     else:
+      action = f"{username} scored {cps} CPS"
+      log_activity(username, action)
       update_cps_if_higher(username, cps)  # Integrate the update_cps_if_higher function here
       return redirect('/clicks-leaderboard')
   else:

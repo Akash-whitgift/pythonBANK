@@ -2,116 +2,7 @@
 <html>
 <head>
     <title>Admin Control</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300&display=swap');
-        * {
-            font-family: 'Rubik', sans-serif;
-            padding: 10px;
-            margin: 10px;
-        }
-
-        a {
-            color: white;
-            opacity: 1;
-        }
-
-        h1 {
-            color: white;
-            opacity: 1;
-        }
-
-        hr {
-            padding: 0px;
-            margin: 0px;
-        }
-
-        .ui {
-            background-color: #dbdada;
-            border: none;
-            color: #000000;
-            padding: 12px 24px;
-            font-size: 16px;
-            font-weight: bold;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            border-radius: 10px;
-            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(5px);
-            padding: auto;
-            margin: 10px;
-            transition: 300ms;
-        }
-
-        .ui:hover {
-            color: #ffffff;
-            transition: 0.7s;
-            background-color: #189cd9 ;
-            box-shadow: 0 12px 6px 0 rgba(255, 255, 255, 0.10),0 17px 16px 0 rgba(73, 73, 73, 0.50);
-        }
-
-        .button {
-            padding: 2px;
-            margin: 2px;
-            transition: 500ms;
-            backdrop-filter: blur(5px);
-            padding: 10px;
-            margin: 10px;
-        }
-
-        button:hover {
-            background-color: #E4E4E4;
-            transition: 500ms;
-            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
-        }
-
-        .card {
-            opacity: 0.8;
-            background-color: black;
-            border-radius: 10px;
-            z-index: 100;
-            color: black;
-            text-align: center;
-            margin: auto;
-            width: 70%;
-            height: 80%;
-            color:white;
-        }
-
-        .flex-container {
-            display: flex;
-            align-content: center;
-            justify-content: center;
-        }
-
-        body {
-            background-color: #d12b26;
-        }
-        .user-details {
-          min-height: 600px;
-          height: 70vh;
-        }
-        .opaque {
-            opacity: 1;
-        }
-
-        .flash-messages {
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-        }
-
-        .flash li {
-            list-style-type: none;
-            margin-bottom: 5px;
-        }
-
-        .user-list {
-            max-height: 150px;
-            overflow-y: scroll;
-        }
-    </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class='card'>
@@ -219,6 +110,15 @@
 </form>
 </p>
         <hr>
+      <div class='logs'>
+      <h3>View User Logs</h3>
+      <ul>
+          {% for user in users %}
+              <li><a href="{{ url_for('view_user_logs', username=user['username']) }}"><button class='ui'>{{ user['username'] }}</button></a></li>
+          {% endfor %}
+      </ul>
+      </div>
+      <hr>
         <a href='/dashboard'><button class='ui'>Back To dashboard</button></a>
     </div>
 </body>

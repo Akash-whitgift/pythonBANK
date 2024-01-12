@@ -1,0 +1,34 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Logs</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class='card'>
+    <h1>User Logs</h1>
+    {% if logs %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Activity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                    <tr>
+                        <td>{{ log[0] }}</td>  {# Assuming log[0] is the datetime value #}
+                        <td>{{ log[1] }}</td>  {# Assuming log[1] is the activity string #}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No logs available.</p>
+    {% endif %}
+    <p><a href='/settings'><button class='ui'>Back to settings</button></a>
+  <a href='/dashboard'><button class='ui'>Back to dashboard</button></a></div>
+</body>
+</html>

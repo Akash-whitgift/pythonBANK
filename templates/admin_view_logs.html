@@ -1,0 +1,36 @@
+<!-- templates/admin_view_logs.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin View User Logs</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class='card'>
+    <h1>User Logs for {{ username }}</h1>
+    {% if logs %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Activity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                    <tr>
+                        <td>{{ log[0] }}</td>
+                        <td>{{ log[1] }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No logs available for {{ username }}.</p>
+    {% endif %}
+  <a href='/admin-control'><button class='ui'>Back to Admin control</button></a>
+  </div>
+</body>
+</html>

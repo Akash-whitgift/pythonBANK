@@ -15,7 +15,8 @@ cps = 0
 # Create a cursor object using the cursor() method
 cursor = conn.cursor()
 cursor.execute("""
-SELECT * FROM users
+ALTER TABLE logs
+ADD COLUMN time TIMESTAMP;
 """)
 print(datetime.datetime.utcnow())
 # Commit the changes to the database
