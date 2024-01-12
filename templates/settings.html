@@ -21,8 +21,9 @@
     <h2>Delete Account</h2>
     <p><form action="/user-delete" method="post" onsubmit="return confirm('Are you sure you want to delete your account?');">
     <button type='submit' class='ui'>Delete Account</button></form></p>
-    <hr hidden> 
-    <form action="/change-password"method="POST" hidden>
+    <hr>
+    <p><h2>Change Password</h2></p>
+    <form action="/change-password"method="POST" >
         <label for="old_password">Old Password:</label>
         <input type="password" name="old_password" id='old_password' required><br>
 
@@ -32,13 +33,24 @@
         <label for="confirm_new_password">Confirm New Password:</label>
         <input type="password" name="confirm_new_password" id="confirm_new_password"required><br>
 
-        <input type="submit" value="Change Password">
+        <input type="submit" value="Change Password" class='ui'>
     </form>
     <hr>
           <p><form action="/signout" method="POST">
         <button class='ui' type="submit">Sign out</button>
           
           </form></p>
+    <hr>
+    <p><h2>User information</h2></p>
+    <p>Username: {{ user_lookup.username }}</p>
+
+          <p>Admin Status: {% if user_lookup.is_admin %}Admin{% else %}Not Admin{% endif %}</p>
+          <p>Current Balance: {{"£{:,.2f}".format(user_lookup.balance) }}</p>
+    <p>Banned status: {% if user_lookup.banned %}Banned{% else %}Not Banned{% endif %}</p>
+    <p>Last login: {{ user_lookup.login }}</p>
+    <p>Account Created: {{ user_lookup.created }}</p>
+    <p>Clicks Per second: {{ user_lookup.cps }}</p>
+    <hr>
     <p><a href='/dashboard'><button class='ui'>back To dashboard</button></a></p>
     </ul>
     
@@ -125,6 +137,20 @@ transition: 300ms;
      visibility:hidden;
      width: 0;
      height: 0;
+   }
+   p{
+     color: white;
+   }
+   label {
+     text-align:center;
+     color: white;
+     margin: 2px;
+   }
+   input {
+     margin: 2px;
+   }
+   form {
+     margin: 2px;
    }
   </style>
 </html>

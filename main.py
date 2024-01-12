@@ -741,7 +741,33 @@ def user_lookup():
         flash(f"User '{lookup_username}' not found.", 'error')
         return redirect('/admin-control')
 
-
+def get_all_user_info(username):
+    conn = psycopg2.connect(
+        dbname=os.environ['PGDATABASE'],
+        user=os.environ['PGUSER'],
+        password= os.environ['PGPASSWORD'],
+        host=os.environ['PGHOST']
+    )
+    cur = conn.cursor()
+    cur.execute("SELECT username, hashed_password, admin_status, balance, banned_status, account_created, last_login, cps FROM users WHERE username = %s", (username,))
+    user = cur.fetchone()
+    if user:
+      user_info = {
+          'username': user[0],
+          'password': user[1],
+          'is_admin': user[2],
+          'balance': user[3],
+          'banned': user[4],
+          'created': user[5],
+          'login': user[6],
+          'cps': user[7]
+      }
+      return user_info
+    else:
+      # Handle the case where the user is not found
+      return None
+    return user_info
+  
 #Update balance for user Admin Control
 
 
@@ -949,11 +975,11 @@ def register():
     "INSERT INTO users (username, hashed_password, salt, admin_status, balance, banned_status, cps, account_created) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
     (username, hashed_password, salt, False, 100, False, 0, datetime.datetime.utcnow())
   )
+  cur.execute('UPDATE users SET last_login = %s WHERE username = %s', (datetime.datetime.utcnow(), username))
   conn.commit()
-
-
+  session['username'] = username
   flash('Registration successful', 'success')
-  return redirect('/')
+  return redirect('/check-banned')
 
 
 @app.route('/admin-control/update-banned-users', methods=['POST'])
@@ -1315,7 +1341,8 @@ def clicks_leaderboard():
 def settings():
   if 'username' not in session:
     return redirect('/')
-  return render_template('settings.html')
+  user_lookup = get_all_user_info(session['username'])
+  return render_template('settings.html', user_lookup=user_lookup)
 
 
 @app.route('/user-delete', methods=["POST"])
@@ -1326,41 +1353,59 @@ def user_delete():
   return redirect('/')
 
 
-@app.route('/change-password', methods=['GET', 'POST'])
+@app.route('/change-password', methods=['POST'])
 def change_password():
-  if 'username' not in session:
-    flash('You must be logged in to change your password', 'error')
-    return redirect('/login')
+    if 'username' not in session:
+        flash('You must be logged in to change your password', 'error')
+        return redirect('/login')
 
-  if request.method == 'POST':
-    old_password = request.form['old_password']
-    new_password = request.form['new_password']
-    confirm_new_password = request.form['confirm_new_password']
-    print(old_password, new_password, confirm_new_password)
-    # Check if the old password matches the current password
-    username = session['username']
-    if not check_credentials(username, old_password):
-      flash('Old password is incorrect', 'error')
-    elif new_password != confirm_new_password:
-      flash('New passwords do not match', 'error')
-    elif len(new_password) < 6:
-      flash('New password must be at least 6 characters long', 'error')
-    else:
-      # Generate a new salt and hash for the new password
-      salt = bcrypt.gensalt().decode()
-      hashed_password = bcrypt.hashpw(new_password.encode(),
-                                      salt.encode()).decode()
+    if request.method == 'POST':
+        old_password = request.form['old_password']
+        new_password = request.form['new_password']
+        confirm_new_password = request.form['confirm_new_password']
+        username = session['username']
 
-      # Update the password and salt in the database
-      update_password(username, hashed_password, salt)
+      
+        conn = psycopg2.connect(
+          dbname=os.environ['PGDATABASE'],
+          user=os.environ['PGUSER'],
+          password= os.environ['PGPASSWORD'],
+          host=os.environ['PGHOST']
+        )
+        cur = conn.cursor()
+        cur.execute("SELECT hashed_password, salt FROM users WHERE username = %s", (username,))
+        result = cur.fetchone()
+        hashed_password, salt = result
+        # Check if the old password matches the current password
+        username = session['username']
+        if bcrypt.checkpw(old_password.encode(), hashed_password.encode()):
+          if new_password != confirm_new_password:
+              flash('New passwords do not match', 'error')
+          elif len(new_password) < 6:
+              flash('New password must be at least 6 characters long', 'error')
+          else:
+            
+              salt = bcrypt.gensalt().decode()
+              hashed_password = bcrypt.hashpw(new_password.encode(), salt.encode()).decode()
 
-      # Delete the old password hash
-      delete_old_password(username)
+              # Update the password in the database
+              conn = psycopg2.connect(
+                  dbname=os.environ['PGDATABASE'],
+                  user=os.environ['PGUSER'],
+                  password=os.environ['PGPASSWORD'],
+                  host=os.environ['PGHOST']
+              )
+              cur = conn.cursor()
+              cur.execute("UPDATE users SET hashed_password = %s, salt = %s WHERE username = %s", (hashed_password, salt, username))
+              conn.commit()
+              conn.close()
 
-      flash('Password changed successfully', 'success')
-      return redirect('/dashboard')
+        else:
+          flash("Old password incorrect","error")
+          return redirect('/dashboard')
 
-  return render_template('settings.html')
+
+    return render_template('settings.html')
 
 
 def update_password(username, new_password, new_salt):
