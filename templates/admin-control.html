@@ -27,7 +27,15 @@
 <body>
     <div class='card'>
         <h1>Admin Control</h1>
-
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <ul class="messages">
+                    {% for message in messages %}
+                        <li>{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
         <form action="/toggle-admin-only-mode" method="POST">
             <label for="admin_only_mode">Admin-only Mode:</label>
             <input type="checkbox" id="admin_only_mode" name="admin_only_mode" {% if admin_only_mode %}checked{% endif %}>

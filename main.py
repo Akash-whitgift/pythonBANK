@@ -793,7 +793,7 @@ def user_lookup():
 # app.py
 @app.route('/admin/user-actions/<username>', methods=['GET', 'POST'])
 def admin_user_actions(username):
-    if 'username' not in session or session['username'] not in ['admin', 'Arjun']:
+    if 'username' not in session or session['is_admin'] != True:
         flash('Access denied', 'error')
         return redirect('/')
 
@@ -1092,7 +1092,7 @@ def update_banned_users():
       cur.execute("UPDATE users SET banned_status = False WHERE username = %s", (username,))
       flash(f"User '{username}' removed from Banned Users", 'success')
 
-  conn.commit()
+    conn.commit()
 
   return redirect('/admin-control')
 
@@ -1335,6 +1335,8 @@ def admin_control():
         demote_user(username)
 
 
+
+
   # Retrieve the list of user accounts
   users = get_user_accounts()
   admin_only_mode = get_admin_only_mode()
@@ -1484,7 +1486,8 @@ def change_password():
               cur.execute("UPDATE users SET hashed_password = %s, salt = %s WHERE username = %s", (hashed_password, salt, username))
               conn.commit()
               conn.close()
-
+              flash('success')
+              return redirect('/dashboard')
         else:
           flash("Old password incorrect","error")
           return redirect('/dashboard')
