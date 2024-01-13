@@ -91,7 +91,11 @@
       username = document.getElementById('currentChat').innerText;
       loadChat(username)
     }
-
+    function createChat() {
+      var username = document.getElementById('newChatUsername').value;
+      console.log(username);
+      loadChat(username);
+    }
     // Handle real-time updates for past messages
     socket.on('message', function (data) {
         // Update the UI with the received message
@@ -105,12 +109,15 @@
   </script>
 </head>
   <body>
+    <div class='container'>
   <div class="sidebar">
       <h2>Chats</h2>
       <ul class="chat-list">
-          {% for user in users %}
-              <li class="chat-list-item" id="{{ user.username }}" onclick="loadChat('{{ user.username }}')">{{ user.username }}</li>
-          {% endfor %}
+        <input type="text" id="newChatUsername" placeholder="Enter username">
+        <button onclick="createChat()">Create Chat</button>
+        {% for username in active_chats %}
+            <li class="chat-list-item" onclick="loadChat('{{ username }}')">{{ username }}</li>
+        {% endfor %}
       </ul>
   </div>
 
@@ -122,6 +129,8 @@
       <ul id="messageList" class="messagecard"></ul>
       <textarea class="message-input" id="messageInput" rows="5" placeholder="Type your message here"></textarea>
       <button class="send-button" onclick="sendMessage()">Send</button>
+    <a href='/dashboard'><button class='ui'>Back to Dashboard</button></a>
   </div>
+    </div>
   </body>
 </html>

@@ -15,13 +15,7 @@ cps = 0
 # Create a cursor object using the cursor() method
 cursor = conn.cursor()
 cursor.execute("""
-CREATE TABLE messages (
-    id SERIAL PRIMARY KEY,
-    sender VARCHAR(255) NOT NULL,
-    recipient VARCHAR(255) NOT NULL,
-    message TEXT NOT NULL,
-    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+DELETE FROM messages WHERE recipient = 'Anushka'
 """)
 print(datetime.datetime.utcnow())
 # Commit the changes to the database

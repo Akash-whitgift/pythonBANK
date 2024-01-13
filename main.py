@@ -190,6 +190,8 @@ def delete_account(username):
   )
   cur = conn.cursor()
   cur.execute("DELETE FROM users WHERE username = %s", (username,))
+  cur.execute("DELETE FROM messages WHERE sender = %s",(username,))
+  cur.execute("DELETE FROM messages WHERE recipient = %s",(username,))
   conn.commit()
 
 @app.route('/delete-account', methods=['POST'])
@@ -204,6 +206,9 @@ def delete_account_for_user():
     cur = conn.cursor()
     # Remove the user's data from the database
     cur.execute("DELETE FROM users WHERE username = %s", (username,))
+    cur.execute("DELETE FROM messages WHERE sender = %s",(username,))
+    cur.execute("DELETE FROM messages WHERE receiver = %s",(username,))
+
     # Commit the changes to the database
     conn.commit()
 
@@ -242,7 +247,40 @@ def handle_connect():
         print(f"User {username} joined room {username}")
 
 
+import psycopg2
+import os
 
+def get_active_chats(user):
+    try:
+        conn = psycopg2.connect(
+            dbname=os.environ['PGDATABASE'],
+            user=os.environ['PGUSER'],
+            password=os.environ['PGPASSWORD'],
+            host=os.environ['PGHOST']
+        )
+        cur = conn.cursor()
+
+        # Fetch users with whom the current user has had conversations (either as sender or recipient)
+        cur.execute("""
+            SELECT DISTINCT sender AS username
+            FROM messages
+            WHERE recipient = %s
+            UNION
+            SELECT DISTINCT recipient AS username
+            FROM messages
+            WHERE sender = %s
+        """, (user, user))
+
+        active_chats = [row[0] for row in cur.fetchall()]
+        print(active_chats)
+    except Exception as e:
+        # Handle the exception (print, log, etc.)
+        print(f"Error getting active chats: {e}")
+        active_chats = []
+
+    return active_chats
+
+  
 def load_past_messages(user, recipient):
   # Load past messages relevant to the user from the database
   conn = psycopg2.connect(
@@ -770,12 +808,6 @@ def interalError():
   return render_template('500.html'), 500
 
 
-#Not used
-@app.route('/messages/<username>')
-def messages(username):
-  user_messages = get_user_messages(username)
-  return render_template('messages.html', messages=user_messages)
-
 
 #Mainpage
 @app.route('/')
@@ -1201,43 +1233,11 @@ def message():
     message = request.form['message']
     save_message(sender, recipient, message)
 
-  message_history = []
 
-  # Fetch all messages sent or received by the user
-  with open('database.txt', 'r') as file:
-    for line in file:
-      values = line.strip().split(' - ')
-      if len(values) == 4:
-        sender, recipient, message, timestamp = values
-        if sender == session['username'] or recipient == session['username']:
-          message_history.append({
-            'sender': sender,
-            'recipient': recipient,
-            'message': message,
-            'timestamp': timestamp
-          })
-
-  # Sort the message history in reverse order based on timestamp
-  message_history.sort(
-    key=lambda x: _strptime._strptime(x['timestamp'], "%Y-%m-%d %H:%M:%S"),
-    reverse=True)
-
-  recipient_filter = request.args.get(
-    'recipient_filter',
-    '')  # Get the recipient filter from the query parameters
-
-  # Apply the recipient filter if specified
-  if recipient_filter:
-    message_history = [
-      message for message in message_history
-      if message['recipient'] == recipient_filter
-      or message['sender'] == recipient_filter
-    ]
-
+  current_user = session.get('username')
+  active_chats = get_active_chats(current_user)
   return render_template('message.html',
-                         users=get_user_accounts(),
-                         message_history=message_history,
-                         recipient_filter=recipient_filter)
+                         active_chats=active_chats)
 
 
 #Login User Function

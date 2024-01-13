@@ -95,12 +95,24 @@
     }
 
     .message {
-        background-color: #dbdada;
+        background-color: #555;
         border-radius: 10px;
         padding: 10px;
         margin-bottom: 10px;
     }
+.textarea {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  resize: both;
+  min-height: 40px;
+  line-height: 20px;
+}
 
+.textarea[contenteditable]:empty::before {
+  content: "Placeholder still possible";
+  color: gray;
+}
     ul {
         color: white;
         list-style: none;
@@ -126,7 +138,7 @@
     }
 
     .message-input {
-        width: 100%;
+        width: 90%;
         padding: 10px;
         font-size: 16px;
         margin-bottom: 10px;
@@ -154,3 +166,21 @@
         background-color: #189cd9 ;
         box-shadow: 0 12px 6px 0 rgba(255, 255, 255, 0.10),0 17px 16px 0 rgba(73, 73, 73, 0.50);
     }
+.container {
+  display: flex;
+}
+
+.sidebar {
+  width: 20%; /* Adjust the width as needed */
+  overflow-y: auto; /* Add this property to enable vertical scrolling if content exceeds height */
+  max-height: 100vh; /*
+}
+
+.chat-area {
+  flex: 1; /* This makes the chat area take up the remaining space */
+  overflow-y: auto; /* Add this property to enable vertical scrolling if content exceeds height */
+  max-height: 100vh;
+}
+textarea {
+  width: 90%;
+}
