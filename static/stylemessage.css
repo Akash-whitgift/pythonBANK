@@ -1,0 +1,156 @@
+
+    @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300&display=swap');
+    * {
+        font-family: 'Rubik', sans-serif;
+    }
+
+    label {
+        color: white;
+    }
+
+    .ui {
+        background-color: #dbdada;
+        border: none;
+        color: #000000;
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: bold;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        border-radius: 10px;
+        box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(5px);
+        padding: auto;
+        margin: 10px;
+        transition: 300ms;
+    }
+
+    .messagecard {
+        max-height: 50vh;
+        overflow-y: scroll;
+    }
+
+    .sidebar {
+        width: 20%;
+        float: left;
+        padding: 20px;
+        background-color: #333;
+        color: white;
+        height: 100vh;
+    }
+
+    .chat-area {
+        width: 80%;
+        float: left;
+        padding: 20px;
+        background-color: #555;
+        color: white;
+        height: 100vh;
+    }
+
+    .button {
+        background-color: #dbdada;
+        border: none;
+        color: #000000;
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: bold;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        border-radius: 10px;
+        box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(5px);
+        padding: auto;
+        margin: 10px;
+        transition: 300ms;
+    }
+
+    .ui:hover {
+        color: #ffffff;
+        transition: 0.7s;
+        background-color: #189cd9 ;
+        box-shadow: 0 12px 6px 0 rgba(255, 255, 255, 0.10),0 17px 16px 0 rgba(73, 73, 73, 0.50);
+    }  
+
+    body {
+        background-color: #d12b26;
+        margin: 0;
+    }
+
+    h1, h2, h3 {
+        color: white;
+        margin: 5px;
+    }
+
+    .card {
+        opacity: 0.8;
+        border-radius: 10px;
+        z-index: 100;
+        color: black;
+        text-align: center;
+        width: 100%;
+        height: 100%;
+    }
+
+    .message {
+        background-color: #dbdada;
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+
+    ul {
+        color: white;
+        list-style: none;
+        padding: 0;
+    }
+
+    .chat-list-item {
+        cursor: pointer;
+        padding: 10px;
+        border-bottom: 1px solid #555;
+    }
+
+    .chat-list-item:hover {
+        background-color: #444;
+    }
+
+    .selected-chat {
+        background-color: #444;
+    }
+
+    .chat-header {
+        margin-bottom: 20px;
+    }
+
+    .message-input {
+        width: 100%;
+        padding: 10px;
+        font-size: 16px;
+        margin-bottom: 10px;
+    }
+
+    .send-button {
+        background-color: #dbdada;
+        border: none;
+        color: #000000;
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: bold;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        border-radius: 10px;
+        box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(5px);
+        transition: 300ms;
+    }
+
+    .send-button:hover {
+        color: #ffffff;
+        transition: 0.7s;
+        background-color: #189cd9 ;
+        box-shadow: 0 12px 6px 0 rgba(255, 255, 255, 0.10),0 17px 16px 0 rgba(73, 73, 73, 0.50);
+    }

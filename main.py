@@ -3,8 +3,9 @@ monkey.patch_all()
 from gevent.pywsgi import WSGIServer
 from flask_compress import Compress
 from flask import Flask, render_template, request, redirect, session, flash, jsonify
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room, leave_room
 import flask_socketio
+from flask_sslify import SSLify
 import flask
 import random
 import time
@@ -25,6 +26,7 @@ app = Flask(__name__)
 key = str(random.randrange(16**32))
 app.secret_key = key
 socketio = SocketIO(app)
+sslify = SSLify(app)
 app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(minutes=360)
 CONFIG_FILE = 'config.ini'
 message_history = []
@@ -207,19 +209,6 @@ def delete_account_for_user():
 
     return redirect('/')
 
-def get_user_messages(username):
-  messages = []
-  with open('database.txt', 'r') as file:
-    for line in file:
-      sender, recipient, message, timestamp = line.strip().split(' - ')
-      if sender == username or recipient == username:
-        messages.append({
-          'sender': sender,
-          'recipient': recipient,
-          'message': message,
-          'timestamp': timestamp
-        })
-  return messages
   
 @socketio.on('send_message')
 def handle_message(data):
@@ -227,16 +216,19 @@ def handle_message(data):
     message = data['message']
     sender = session['username']
     save_message(sender, recipient, message)
-    emit('message', {'sender': sender, 'message': message}, room=recipient)
+    emit('new_message', {'sender': sender, 'message': message, 'recipient': recipient}, room=recipient)
+
+
 
 @app.route('/get_messages', methods=['GET'])
 def get_messages():
-    username = request.args.get('username')  # Assuming the username is passed as a query parameter
+    recipient = request.args.get('username')  # Assuming the username is passed as a query parameter
+    username = session['username']
     # Fetch messages from your database based on the provided username
-    messages = load_past_messages(username)
+    messages = load_past_messages(username, recipient)
 
     # Convert messages to a list of dictionaries (replace with your actual message structure)
-    messages_list = [{'sender': msg.sender, 'message': msg.message} for msg in messages]
+    messages_list = [{'sender': msg['sender'], 'message': msg['message']} for msg in messages]
 
     return jsonify(messages_list)
 #Save sent message
@@ -244,16 +236,14 @@ def get_messages():
 # Broadcast the message to all connected clients
 @socketio.on('connect')
 def handle_connect():
-    # Access the session to get the username
-    username = session['username']
-
-    # Load and send past messages relevant to the user when a client connects
-    past_messages = load_past_messages(username)
-    for message in past_messages:
-        emit('message', message)
+    if 'username' in session:
+        username = session['username']
+        join_room(username)
+        print(f"User {username} joined room {username}")
 
 
-def load_past_messages(user):
+
+def load_past_messages(user, recipient):
   # Load past messages relevant to the user from the database
   conn = psycopg2.connect(
       dbname=os.environ['PGDATABASE'],
@@ -264,11 +254,15 @@ def load_past_messages(user):
   cur = conn.cursor()
 
   # Load messages where the user is either the sender or recipient
-  cur.execute("SELECT sender, recipient, message, timestamp FROM messages WHERE sender = %s OR recipient = %s ORDER BY timestamp DESC LIMIT 10",
-              (user, user))
+  cur.execute("""
+      SELECT sender, recipient, message, date
+      FROM messages
+      WHERE (sender = %s AND recipient = %s) OR (sender = %s AND recipient = %s)
+      ORDER BY date DESC LIMIT 10
+  """, (user, recipient, recipient, user))
 
-  past_messages = [{'sender': sender, 'recipient': recipient, 'message': message, 'timestamp': timestamp}
-                   for sender, recipient, message, timestamp in cur.fetchall()]
+  past_messages = [{'sender': sender, 'recipient': recipient, 'message': message, 'timestamp': date.strftime("%Y-%m-%d %H:%M:%S")}
+     for sender, recipient, message, date in cur.fetchall()]
 
   cur.close()
   conn.close()
@@ -277,22 +271,32 @@ def load_past_messages(user):
 
 
 def save_message(sender, recipient, message):
-    conn = psycopg2.connect(
-        dbname=os.environ['PGDATABASE'],
-        user=os.environ['PGUSER'],
-        password=os.environ['PGPASSWORD'],
-        host=os.environ['PGHOST']
-    )
-    cur = conn.cursor()
+  try:
+      conn = psycopg2.connect(
+          dbname=os.environ['PGDATABASE'],
+          user=os.environ['PGUSER'],
+          password=os.environ['PGPASSWORD'],
+          host=os.environ['PGHOST']
+      )
+      cur = conn.cursor()
 
-    # Use the sql module to safely format the SQL query
-    timestamp = datetime.utcnow()
-    cur.execute("""
-    INSERT INTO messages (sender, recipient, message, timestamp)
-        VALUES (%s, %s, %s, %s)
-    """, (sender, recipient, message, timestamp))
+      # Use the sql module to safely format the SQL query
+      timestamp = datetime.datetime.utcnow()
+      cur.execute("""
+      INSERT INTO messages (sender, recipient, message, date)
+          VALUES (%s, %s, %s, %s)
+      """, (sender, recipient, message, timestamp))
 
-    conn.commit()
+      conn.commit()
+
+  except Exception as e:
+      # Print or log the exception for debugging
+      print(f"Error saving message: {e}")
+
+  finally:
+      cur.close()
+      conn.close()
+
 
 
 #Get usernames from database
