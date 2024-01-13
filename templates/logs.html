@@ -9,6 +9,7 @@
   <div class='card'>
     <h1>User Logs</h1>
     {% if logs %}
+    <div class='log-container'>
         <table class='logs'>
             <thead>
                 <tr>
@@ -25,10 +26,12 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
     {% else %}
         <p>No logs available.</p>
     {% endif %}
     <p><a href='/settings'><button class='ui'>Back to settings</button></a>
   <a href='/dashboard'><button class='ui'>Back to dashboard</button></a></div>
+</div>
 </body>
 </html>

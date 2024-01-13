@@ -48,8 +48,14 @@ transition: 300ms;
  background-color: #189cd9 ;
  box-shadow: 0 12px 6px 0 rgba(255, 255, 255, 0.10),0 17px 16px 0 rgba(73, 73, 73, 0.50);
 }  
-.logs {
-  max-height:100%;
+table tbody {overflow-y:scroll; display:block; }
+table thead { display:block; }
+tr {
+  display: table;
+}
+.log-container {
+  height:60%; 
+  overflow-y:scroll;
 }
    body {
     background-color: #d12b26;
@@ -73,7 +79,7 @@ transition: 300ms;
     text-align: center;
     margin: auto;
     width: 50%;
-    height: 50%;
+    height: 80%;
     padding:5px;
   }
    .hidden {
