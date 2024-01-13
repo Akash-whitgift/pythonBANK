@@ -13,6 +13,7 @@ gevent = "^22.10.2"
 bcrypt = "^4.0.1"
 bard = "^0.1"
 psycopg2-binary = "^2.9.9"
+Flask-SocketIO = "^5.3.6"
 
 [tool.poetry.dev-dependencies]
 debugpy = "^1.6.2"

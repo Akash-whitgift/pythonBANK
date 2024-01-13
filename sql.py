@@ -15,8 +15,13 @@ cps = 0
 # Create a cursor object using the cursor() method
 cursor = conn.cursor()
 cursor.execute("""
-ALTER TABLE logs
-ADD COLUMN time TIMESTAMP;
+CREATE TABLE messages (
+    id SERIAL PRIMARY KEY,
+    sender VARCHAR(255) NOT NULL,
+    recipient VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 """)
 print(datetime.datetime.utcnow())
 # Commit the changes to the database

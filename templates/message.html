@@ -1,189 +1,265 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>Messenger</title>
-      <script>
-        // Request permission to display notifications
-        if (Notification.permission !== 'granted') {
-            Notification.requestPermission();
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.3/socket.io.js"></script>
+    <script>
+        var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+        socket.on('new_message', function(data) {
+            displayNotification('New Message from ' + data.sender, data.message);
+            
+            // Create a new message element
+            var messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            messageElement.innerHTML = `
+                <p><strong>From:</strong> ${data.sender}</p>
+                <p><strong>To:</strong> ${data.recipient}</p>
+                <p><strong>Message:</strong> ${data.message}</p>
+                <p><strong>Timestamp:</strong> ${data.timestamp}</p>
+            `;
+            
+            // Append the new message to the message history container
+            var messageHistory = document.querySelector('.messagecard');
+            messageHistory.appendChild(messageElement);
+
+            // Optionally, scroll to the bottom of the message history
+            messageHistory.scrollTop = messageHistory.scrollHeight;
+        });
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300&display=swap');
+        * {
+            font-family: 'Rubik', sans-serif;
+        }
+        
+        label {
+            color: white;
         }
 
-        // Function to display a notification
-        function displayNotification(title, message) {
-            if (Notification.permission === 'granted') {
-                new Notification(title, {
-                    body: message,
-                });
-            }
+        .ui {
+            background-color: #dbdada;
+            border: none;
+            color: #000000;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            border-radius: 10px;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            padding: auto;
+            margin: 10px;
+            transition: 300ms;
         }
 
-        // Check for new messages and display a notification
-        {% if new_message %}
-            displayNotification('New Message from, '{{sender}}', '{{ new_message }}');
-        {% endif %}
-      </script>
+        .messagecard {
+            max-height: 50vh;
+            overflow-y: scroll;
+        }
+
+        .sidebar {
+            width: 20%;
+            float: left;
+            padding: 20px;
+            background-color: #333;
+            color: white;
+            height: 100vh;
+        }
+
+        .chat-area {
+            width: 80%;
+            float: left;
+            padding: 20px;
+            background-color: #555;
+            color: white;
+            height: 100vh;
+        }
+
+        .button {
+            background-color: #dbdada;
+            border: none;
+            color: #000000;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            border-radius: 10px;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            padding: auto;
+            margin: 10px;
+            transition: 300ms;
+        }
+
+        .ui:hover {
+            color: #ffffff;
+            transition: 0.7s;
+            background-color: #189cd9 ;
+            box-shadow: 0 12px 6px 0 rgba(255, 255, 255, 0.10),0 17px 16px 0 rgba(73, 73, 73, 0.50);
+        }  
+
+        body {
+            background-color: #d12b26;
+            margin: 0;
+        }
+
+        h1, h2, h3 {
+            color: white;
+            margin: 5px;
+        }
+
+        .card {
+            opacity: 0.8;
+            border-radius: 10px;
+            z-index: 100;
+            color: black;
+            text-align: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        .message {
+            background-color: #dbdada;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        ul {
+            color: white;
+            list-style: none;
+            padding: 0;
+        }
+
+        .chat-list-item {
+            cursor: pointer;
+            padding: 10px;
+            border-bottom: 1px solid #555;
+        }
+
+        .chat-list-item:hover {
+            background-color: #444;
+        }
+
+        .selected-chat {
+            background-color: #444;
+        }
+
+        .chat-header {
+            margin-bottom: 20px;
+        }
+
+        .message-input {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .send-button {
+            background-color: #dbdada;
+            border: none;
+            color: #000000;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            border-radius: 10px;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            transition: 300ms;
+        }
+
+        .send-button:hover {
+            color: #ffffff;
+            transition: 0.7s;
+            background-color: #189cd9 ;
+            box-shadow: 0 12px 6px 0 rgba(255, 255, 255, 0.10),0 17px 16px 0 rgba(73, 73, 73, 0.50);
+        }
+    </style>
 </head>
 <body>
-  <div class='card'>
-     <h1>Messaging</h1>
-
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            <ul class="messages">
-                {% for message in messages %}
-                    <li>{{ message }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-    {% endwith %}
-
-    <form method="POST" action="/message">
-        <label for="recipient">Recipient:</label>
-        <select name="recipient" id="recipient">
+    <div class="sidebar">
+        <h2>Chats</h2>
+        <ul class="chat-list">
             {% for user in users %}
-                <option value="{{ user.username }}">{{ user.username }}</option>
+                <li class="chat-list-item" onclick="loadChat('{{ user.username }}')">{{ user.username }}</li>
             {% endfor %}
-        </select><br><br>
-
-        <label for="message">Message:</label>
-        <textarea name="message" id="message" rows="5" cols="30"></textarea><br><br>
-
-        <input type="submit" class='ui' value="Send">
-    </form>
-    <p><a href='/dashboard'><button class='ui'>Back to Dashboard</button></a><a href='/message'><button class='ui'>Refresh</button></a></p>
-    <form method="GET" action="/message">
-        <label for="recipient_filter">Filter Messages:</label>
-        <select name="recipient_filter" id="recipient_filter">
-            <option value="">All</option>
-            {% for user in users %}
-                <option value="{{ user.username }}"
-                        {% if user.username == recipient_filter %}selected{% endif %}>{{ user.username }}</option>
-            {% endfor %}
-        </select>
-        <input type="submit" value="Filter">
-    </form>
-
-    <h2>Message History</h2>
-    <div class='messagecard'>
-    {% for message in message_history %}
-        {% if message.recipient == session['username'] %}
-            {% if recipient_filter == '' or message.sender == recipient_filter %}
-                <div class="message">
-                    <p><strong>From:</strong> {{ message.sender }}</p>
-                    <p><strong>To:</strong> {{ message.recipient }}</p>
-                    <p><strong>Message:</strong> {{ message.message }}</p>
-                    <p><strong>Timestamp:</strong> {{ message.timestamp }}</p>
-                </div>
-            {% endif %}
-        {% elif message.sender == session['username'] %}
-            {% if recipient_filter == '' or message.recipient == recipient_filter %}
-                <div class="message">
-                    <p><strong>From:</strong> You</p>
-                    <p><strong>To:</strong> {{ message.recipient }}</p>
-                    <p><strong>Message:</strong> {{ message.message }}</p>
-                    <p><strong>Timestamp:</strong> {{ message.timestamp }}</p>
-                </div>
-            {% endif %}
-        {% endif %}
-    {% endfor %}
+        </ul>
     </div>
-  </div>
+
+    <div class="chat-area">
+        <div class="chat-header">
+            <h1>Messaging</h1>
+            <p><strong>Current Chat:</strong> <span id="currentChat"></span></p>
+        </div>
+        <div class="messagecard"></div>
+        <textarea class="message-input" id="messageInput" rows="5" placeholder="Type your message here"></textarea>
+        <button class="send-button" onclick="sendMessage()">Send</button>
+    </div>
+
+  <script>
+      const socket = io.connect('wss://' + document.domain + ':' + location.port);
+
+      socket.on('message', function (message) {
+          const messageList = document.getElementById('messageList');
+          const listItem = document.createElement('li');
+          listItem.textContent = message;
+          messageList.appendChild(listItem);
+      });
+
+    function loadChat(username) {
+        document.getElementById('currentChat').innerText = username;
+
+        // Fetch and display chat messages for the selected user
+        loadPastMessages(username);
+    }
+
+    function loadPastMessages(username) {
+        // Assuming you have a function to fetch past messages from the server
+        fetch(`https://${document.domain}/get_messages?username=${username}`)
+            .then(response => response.json())
+            .then(messages => {
+                // Once messages are loaded, display them using the displayMessages function
+                displayMessages(messages);
+            })
+            .catch(error => console.error('Error loading past messages:', error));
+    }
+    function displayMessages(messages) {
+        const messageContainer = document.getElementById('messageContainer');
+        // Clear existing messages
+        messageContainer.innerHTML = '';
+
+        // Iterate through messages and append them to the container
+        messages.forEach(message => {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message';
+            messageElement.innerHTML = `<strong>${message.sender}:</strong> ${message.message}`;
+            messageContainer.appendChild(messageElement);
+        });
+    }
+
+      function sendMessage() {
+          var recipient = document.getElementById('currentChat').innerText;
+          var message = document.getElementById('messageInput').value;
+
+          // Send the message to the server
+          socket.emit('send_message', {
+              recipient: recipient,
+              message: message
+          });
+
+          // Clear the message input
+          document.getElementById('messageInput').value = '';
+      }
+  </script>
+
 </body>
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300&display=swap');
-    * {
-        font-family: 'Rubik', sans-serif;
-    }
-    
-    label {
-        color: white;
-    }
-
-    .ui {
-        background-color: #dbdada;
-        border: none;
-        color: #000000;
-        padding: 12px 24px;
-        font-size: 16px;
-        font-weight: bold;
-        text-align: center;
-        text-decoration: none;
-        display: inline-block;
-        border-radius: 10px;
-        box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
-        backdrop-filter: blur(5px);
-        padding: auto;
-        margin: 10px;
-        transition: 300ms;
-    }
-    .messagecard {
-      max-height: 50vh;
-      overflow-y:scroll;
-    }
-    .button {
-        background-color: #dbdada;
-        border: none;
-        color: #000000;
-        padding: 12px 24px;
-        font-size: 16px;
-        font-weight: bold;
-        text-align: center;
-        text-decoration: none;
-        display: inline-block;
-        border-radius: 10px;
-        box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.7);
-        backdrop-filter: blur(5px);
-        padding: auto;
-        margin: 10px;
-        transition: 300ms;
-    }
-
-    .ui:hover {
-        color: #ffffff;
-        transition: 0.7s;
-        background-color: #189cd9 ;
-        box-shadow: 0 12px 6px 0 rgba(255, 255, 255, 0.10),0 17px 16px 0 rgba(73, 73, 73, 0.50);
-    }  
-   
-    body {
-        background-color: #d12b26;
-    }
-   
-    h1 {
-        color: white;
-        margin: 5px;
-    }
-   
-    h2 {
-        color: white;
-    }
-   
-    h3 {
-        color: white;
-    }
-   
-    .card {
-        opacity: 0.8;
-        background-color: black;
-        border-radius: 10px;
-        z-index: 100;
-        color: black;
-        text-align: center;
-        margin: auto;
-        width: 50%;
-        height: 50%;
-        padding: 5px;
-    }
-
-    .message {
-        overflow:scroll;
-        background-color: #dbdada;
-        border-radius: 10px;
-        padding: 10px;
-        margin-bottom: 10px;
-    }
-    ul {
-      color:white;
-    }
-</style>
 </html>
