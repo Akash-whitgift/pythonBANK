@@ -219,16 +219,22 @@ def delete_account_for_user():
 def handle_message(data):
     recipient = data['recipient']
     message = data['message']
-    sender = session['username']
-    save_message(sender, recipient, message)
-    emit('new_message', {'sender': sender, 'message': message, 'recipient': recipient}, room=recipient)
+
+    # Check if 'username' is in the session
+    if 'username' in session:
+        sender = session['username']
+        save_message(sender, recipient, message)
+        emit('new_message', {'sender': sender, 'message': message, 'recipient': recipient}, room=recipient)
+    else:
+        # Handle the case where 'username' is not in the session (user not logged in)
+        print("User not logged in")
 
 
 
 @app.route('/get_messages', methods=['GET'])
 def get_messages():
     recipient = request.args.get('username')  # Assuming the username is passed as a query parameter
-    username = session['username']
+    username = session.get('username')
     # Fetch messages from your database based on the provided username
     messages = load_past_messages(username, recipient)
 
@@ -245,10 +251,6 @@ def handle_connect():
         username = session['username']
         join_room(username)
         print(f"User {username} joined room {username}")
-
-
-import psycopg2
-import os
 
 def get_active_chats(user):
     try:
