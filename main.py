@@ -211,23 +211,115 @@ def delete_account_for_user():
 
     # Commit the changes to the database
     conn.commit()
-
     return redirect('/')
 
+def get_group_members(group_name):
+  try:
+    conn = psycopg2.connect(
+        dbname=os.environ['PGDATABASE'],
+        user=os.environ['PGUSER'],
+        password=os.environ['PGPASSWORD'],
+        host=os.environ['PGHOST']
+    )
+    cur = conn.cursor()
+
+    # Fetch group members based on the group name
+    cur.execute("""
+        SELECT username
+        FROM group_members
+        WHERE group_id = (
+            SELECT group_id
+            FROM groups
+            WHERE group_name = %s
+        )
+    """, (group_name,))
+    group_members = [row[0] for row in cur.fetchall()]
+
+  except Exception as e:
+    # Handle the exception (print, log, etc.)
+    print(f"Error getting group members: {e}")
+    group_members = []
+
+  finally:
+    if cur:
+        cur.close()
+    if conn:
+        conn.close()
+
+  return group_members
+
+
+
+@app.route('/get_group_messages', methods=['GET'])
+def get_group_messages():
+    group_name = request.args.get('group_name')
+    # Assuming you have a function to fetch group messages from the database
+    group_messages = load_group_messages(group_name)
+
+    # Convert messages to a list of dictionaries (replace with your actual message structure)
+    group_messages_list = [{'sender': msg['sender'], 'message': msg['message']} for msg in group_messages]
+
+    return jsonify(group_messages_list)
   
 @socketio.on('send_message')
 def handle_message(data):
     recipient = data['recipient']
     message = data['message']
 
-    # Check if 'username' is in the session
-    if 'username' in session:
+    if recipient.startswith('_'):  # Check if it's a group message
+        group_name = recipient[1:]
+        sender = session['username']
+        save_group_message(sender, group_name, message)
+
+        # Fetch group members
+        group_members = get_group_members(group_name)
+
+        # Emit the message to each group member's room
+        for member in group_members:
+            emit('new_message', {'sender': sender, 'message': message, 'recipient': recipient}, room=member)
+    else:
+        # Handle private messages as before
         sender = session['username']
         save_message(sender, recipient, message)
         emit('new_message', {'sender': sender, 'message': message, 'recipient': recipient}, room=recipient)
-    else:
-        # Handle the case where 'username' is not in the session (user not logged in)
-        print("User not logged in")
+
+@socketio.on('create_group')
+def handle_create_group(data):
+    group_name = data['group_name']
+    group_members = data['members']
+
+    try:
+        conn = psycopg2.connect(
+          dbname=os.environ['PGDATABASE'],
+          user=os.environ['PGUSER'],
+          password=os.environ['PGPASSWORD'],
+          host=os.environ['PGHOST']
+      )
+      
+        cur = conn.cursor()
+
+        # Insert the group into the 'groups' table
+        cur.execute("INSERT INTO groups (group_name) VALUES (%s) RETURNING group_id", (group_name,))
+        group_id = cur.fetchone()[0]
+
+        # Insert group members into the 'group_members' table
+        for member in group_members:
+            cur.execute("INSERT INTO group_members (group_id, username) VALUES (%s, %s)", (group_id, member))
+
+        conn.commit()
+
+        # Broadcast a message to all members of the group
+        for member in group_members:
+            room = f"{member}"
+            emit('new_group', {'group_name': group_name}, room=room)
+
+    except Exception as e:
+        # Handle the exception (print, log, etc.)
+        print(f"Error creating group: {e}")
+
+    finally:
+        cur.close()
+        conn.close()
 
 
 
@@ -253,34 +345,38 @@ def handle_connect():
         print(f"User {username} joined room {username}")
 
 def get_active_chats(user):
-    try:
-        conn = psycopg2.connect(
-            dbname=os.environ['PGDATABASE'],
-            user=os.environ['PGUSER'],
-            password=os.environ['PGPASSWORD'],
-            host=os.environ['PGHOST']
-        )
-        cur = conn.cursor()
+  try:
+    conn = psycopg2.connect(
+        dbname=os.environ['PGDATABASE'],
+        user=os.environ['PGUSER'],
+        password=os.environ['PGPASSWORD'],
+        host=os.environ['PGHOST']
+    )
+    cur = conn.cursor()
 
-        # Fetch users with whom the current user has had conversations (either as sender or recipient)
-        cur.execute("""
-            SELECT DISTINCT sender AS username
-            FROM messages
-            WHERE recipient = %s
-            UNION
-            SELECT DISTINCT recipient AS username
-            FROM messages
-            WHERE sender = %s
-        """, (user, user))
+    # Fetch users with whom the current user has had conversations (either as sender or recipient)
+    cur.execute("""
+        SELECT DISTINCT sender AS username
+        FROM messages
+        WHERE recipient = %s
+        UNION
+        SELECT DISTINCT recipient AS username
+        FROM messages
+        WHERE sender = %s
+    """, (user, user))
 
-        active_chats = [row[0] for row in cur.fetchall()]
-        print(active_chats)
-    except Exception as e:
-        # Handle the exception (print, log, etc.)
-        print(f"Error getting active chats: {e}")
-        active_chats = []
+    active_chats = [row[0] for row in cur.fetchall()]
 
-    return active_chats
+    # Filter out usernames with a leading underscore
+    active_chats = [chat for chat in active_chats if not chat.startswith('_')]
+    print(active_chats)
+  except Exception as e:
+    # Handle the exception (print, log, etc.)
+    print(f"Error getting active chats: {e}")
+    active_chats = []
+
+  return active_chats
+
 
   
 def load_past_messages(user, recipient):
@@ -1224,6 +1320,98 @@ def ban_user(username,action):
   flash(f"User '{username}' removed from Banned Users", 'success')
   return redirect('/check-banned')
 
+def load_group_messages(group_name):
+  conn = psycopg2.connect(
+      dbname=os.environ['PGDATABASE'],
+      user=os.environ['PGUSER'],
+      password=os.environ['PGPASSWORD'],
+      host=os.environ['PGHOST']
+  )
+  cur = conn.cursor()
+
+  cur.execute("""
+      SELECT sender, recipient, message, date
+      FROM messages
+      WHERE recipient = %s
+      ORDER BY date DESC LIMIT 20
+  """, (f"_{group_name}",))
+
+  group_messages = [{'sender': sender, 'recipient': group_name, 'message': message, 'timestamp': date.strftime("%Y-%m-%d %H:%M:%S")}
+                     for sender, _, message, date in cur.fetchall()]
+
+  cur.close()
+  conn.close()
+
+  return group_messages
+
+
+def save_group_message(sender, group_name, message):
+  try:
+      conn = psycopg2.connect(
+          dbname=os.environ['PGDATABASE'],
+          user=os.environ['PGUSER'],
+          password=os.environ['PGPASSWORD'],
+          host=os.environ['PGHOST']
+      )
+      cur = conn.cursor()
+
+      timestamp = datetime.datetime.utcnow()
+      cur.execute("""
+          INSERT INTO messages (sender, recipient, message, date)
+          VALUES (%s, %s, %s, %s)
+      """, (sender, f"_{group_name}", message, timestamp))
+
+      conn.commit()
+
+  except Exception as e:
+      print(f"Error saving group message: {e}")
+
+  finally:
+      cur.close()
+      conn.close()
+
+def get_user_group_names(username):
+  try:
+    conn = psycopg2.connect(
+      dbname=os.environ['PGDATABASE'],
+      user=os.environ['PGUSER'],
+      password= os.environ['PGPASSWORD'],
+      host=os.environ['PGHOST']
+    )
+    cur = conn.cursor()
+
+    # Fetch the group names based on the group IDs from the 'group_members' table
+    cur.execute("""
+        SELECT groups.group_name
+        FROM groups
+        JOIN group_members ON groups.group_id = group_members.group_id
+        WHERE group_members.username = %s
+    """, (username,))
+    user_group_names = [row[0] for row in cur.fetchall()]
+
+  except Exception as e:
+    # Handle the exception (print, log, etc.)
+    print(f"Error getting user group names: {e}")
+    user_group_names = []
+
+  finally:
+    if cur:
+        cur.close()
+    if conn:
+        conn.close()
+
+  return user_group_names
+
+def get_group_list():
+  current_user = session.get('username')
+
+  if current_user:
+    user_group_names = get_user_group_names(current_user)
+  else:
+    user_group_names = []
+
+  return user_group_names
+
 @app.route('/message', methods=['GET', 'POST'])
 def message():
   if 'username' not in session:
@@ -1234,12 +1422,12 @@ def message():
     recipient = request.form['recipient']
     message = request.form['message']
     save_message(sender, recipient, message)
-
+  group_list = get_group_list()
 
   current_user = session.get('username')
   active_chats = get_active_chats(current_user)
   return render_template('message.html',
-                         active_chats=active_chats)
+                         active_chats=active_chats,group_list=group_list)
 
 
 #Login User Function

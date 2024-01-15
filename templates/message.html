@@ -5,19 +5,29 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='stylemessage.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.3/socket.io.js"></script>
   <script defer>
+
     var socket = io.connect('https://' + document.domain + ':' + location.port, {
-      transports: ['websocket']
+        transports: ['websocket']
     });
-    socket.on('connect', function() {
+
+    socket.on('connect', function () {
         console.log('Connected to server');
     });
-    socket.on('new_message', function(data) {
-    // Update the UI with the received message
-    console.log('Received a new message:', data);
 
-    // Trigger the loadChat function for the recipient's username
-    loadChat(data.sender);
+    socket.on('new_message', function(data) {
+        const currentChat = document.getElementById('realname').innerText;
+        const groupChatName = currentChat.startsWith('_') ? currentChat.slice(1) : currentChat;
+            // Reload the chat history based on the type of chat
+            if (!currentChat.startsWith('_')) {
+                // Reload chat history for private chats
+                loadPastMessages(currentChat);
+            } else {
+                // Reload chat history for group chats
+                loadGroupMessages(groupChatName);
+            }
     });
+
+
     socket.on('message', function (data) {
         // Log a message to the console when a new message is received
         console.log('Received a new message:', data);
@@ -27,11 +37,16 @@
     });
 
     function loadChat(username) {
-      console.log("loading chat")
+        console.log("loading chat");
         document.getElementById('currentChat').innerText = username;
+        document.getElementById('realname').innerText = username;
 
-        // Fetch and display chat messages for the selected user
-        loadPastMessages(username);
+        if (username.startsWith('_')) {
+            loadGroupMessages(username);
+        } else {
+            // Fetch and display private chat messages for the selected user
+            loadPastMessages(username);
+        }
     }
 
     function loadPastMessages(username) {
@@ -42,12 +57,12 @@
                 'Content-Type': 'application/json',
             },
         })
-        .then(response => response.json())
-        .then(messages => {
-            // Instead of replacing the HTML, append new messages to the container
-            displayMessages(messages);
-        })
-        .catch(error => console.error('Error loading past messages:', error));
+            .then(response => response.json())
+            .then(messages => {
+                // Instead of replacing the HTML, append new messages to the container
+                displayMessages(messages);
+            })
+            .catch(error => console.error('Error loading past messages:', error));
     }
 
     function appendMessages(messages) {
@@ -75,27 +90,60 @@
             messageElement.innerHTML = `<strong>${message.sender}:</strong> ${message.message}`;
             messageContainer.appendChild(messageElement);
         });
-      messageContainer.scrollTop = 0;
+        messageContainer.scrollTop = 0;
     }
+
     function sendMessage() {
-        var recipient = document.getElementById('currentChat').innerText;
+        var recipient = document.getElementById('realname').innerText;
         var message = document.getElementById('messageInput').value;
         // Send the message to the server
         socket.emit('send_message', {
             recipient: recipient,
             message: message
         });
-        console.log("message sent")
+        console.log("message sent");
         // Clear the message input
         document.getElementById('messageInput').value = '';
-      username = document.getElementById('currentChat').innerText;
-      loadChat(username)
+        username = document.getElementById('realname').innerHTML;
+        if (username.startsWith('_')) {
+          console.log(':)')
+        } else {
+            // Fetch and display private chat messages for the selected user
+            loadPastMessages(username);
+        }
     }
+
     function createChat() {
-      var username = document.getElementById('newChatUsername').value;
-      console.log(username);
-      loadChat(username);
+        var username = document.getElementById('newChatUsername').value;
+        console.log(username);
+        loadChat(username);
     }
+
+    function createGroupChat() {
+        var groupName = document.getElementById('newGroupName').value;
+        var groupMembers = document.getElementById('newGroupMembers').value;
+        console.log('GC')
+        // Ensure group name is provided
+        if (!groupName) {
+            alert('Please enter a group name.');
+            return;
+        }
+
+        var membersArray = groupMembers.split(',').map(member => member.trim());
+
+        // Ensure at least one member is provided
+        if (membersArray.length === 0 || membersArray[0] === "") {
+            alert('Please enter at least one group member.');
+            return;
+        }
+
+        // Send the group name and members to the server to create the group
+        socket.emit('create_group', { group_name: groupName, members: membersArray });
+      console.log('GC done')
+    }
+    
+
+    
     // Handle real-time updates for past messages
     socket.on('message', function (data) {
         // Update the UI with the received message
@@ -106,6 +154,42 @@
         messageElement.innerHTML = `<strong>${data.sender}:</strong> ${data.message}`;
         messageContainer.appendChild(messageElement);
     });
+
+    function updateGroupList(groupName) {
+        const groupList = document.querySelector('.chat-list');
+
+        // Create a new list item for the group
+        const groupListItem = document.createElement('li');
+        groupListItem.className = 'chat-list-item';
+        groupListItem.textContent = groupName;
+
+        // Attach the 'loadChat' function to the click event of the new group list item
+        groupListItem.onclick = function() {
+            loadChat(groupName);
+        };
+
+        // Append the new group list item to the group list
+        groupList.appendChild(groupListItem);
+    }
+    
+    function loadGroupMessages(groupName) {
+    document.getElementById('currentChat').innerText = groupName;
+    document.getElementById('realname').innerText = '_'+groupName;
+    // Assuming you have a function to fetch group messages from the server
+    fetch(`/get_group_messages?group_name=${groupName}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    })
+      
+        .then(response => response.json())
+        .then(messages => {
+            // Instead of replacing the HTML, append new messages to the container
+            displayMessages(messages);
+        })
+        .catch(error => console.error('Error loading group messages:', error));
+    }
   </script>
 </head>
   <body>
@@ -115,8 +199,21 @@
       <ul class="chat-list">
         <input type="text" id="newChatUsername" placeholder="Enter username">
         <button onclick="createChat()">Create Chat</button>
+        <div>
+            <label for="newGroupName">Group Name:</label>
+            <input type="text" id="newGroupName" placeholder="Enter group name">
+        </div>
+        <div>
+            <label for="newGroupMembers">Group Members (comma-separated):</label>
+            <input type="text" id="newGroupMembers" placeholder="Enter usernames">
+        </div>
+        <button onclick="createGroupChat()">Create Group</button>
         {% for username in active_chats %}
             <li class="chat-list-item" onclick="loadChat('{{ username }}')">{{ username }}</li>
+        {% endfor %}
+        <h3>Group Chats</h3>
+        {% for group in group_list %}
+            <li class="chat-list-item" onclick="loadGroupMessages('{{ group }}')">{{ group }}</li>
         {% endfor %}
       </ul>
   </div>
@@ -130,6 +227,7 @@
       <textarea class="message-input" id="messageInput" rows="5" placeholder="Type your message here"></textarea>
       <button class="send-button" onclick="sendMessage()">Send</button>
     <a href='/dashboard'><button class='ui'>Back to Dashboard</button></a>
+    <p id='realname' ></p>
   </div>
     </div>
   </body>

@@ -15,7 +15,7 @@ cps = 0
 # Create a cursor object using the cursor() method
 cursor = conn.cursor()
 cursor.execute("""
-DROP TABLE group_members, groups
+DELETE FROM messages WHERE recipient = '';
 """)
 print(datetime.datetime.utcnow())
 # Commit the changes to the database
