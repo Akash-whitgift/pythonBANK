@@ -248,7 +248,12 @@ def get_group_members(group_name):
 
   return group_members
 
+@app.route('/get_group_members', methods=['GET'])
+def get_group_members_route():
+    group_name = request.args.get('group_name')
+    group_members = get_group_members(group_name)
 
+    return jsonify(group_members)
 
 @app.route('/get_group_messages', methods=['GET'])
 def get_group_messages():
@@ -283,6 +288,48 @@ def handle_message(data):
         save_message(sender, recipient, message)
         emit('new_message', {'sender': sender, 'message': message, 'recipient': recipient}, room=recipient)
 
+@app.route('/leave_group/<group_name>', methods=['GET', 'POST'])
+def leave_group(group_name):
+    if 'username' not in session:
+        return redirect('/')
+
+    current_user = session['username']
+
+    try:
+        conn = psycopg2.connect(
+          dbname=os.environ['PGDATABASE'],
+          user=os.environ['PGUSER'],
+          password=os.environ['PGPASSWORD'],
+          host=os.environ['PGHOST']
+        )
+        cur = conn.cursor()
+
+        # Fetch the group ID for the given group name
+        cur.execute("SELECT group_id FROM groups WHERE group_name = %s", (group_name,))
+        group_id = cur.fetchone()
+
+        if group_id:
+            # Remove the user from the group_members table
+            cur.execute("DELETE FROM group_members WHERE group_id = %s AND username = %s", (group_id, current_user))
+            conn.commit()
+
+            # Redirect to the dashboard or another appropriate page after leaving the group
+            return redirect('/message')
+        else:
+           flash('Group does not exist.', 'error')
+           return redirect('/dashboard')
+
+    except Exception as e:
+        # Handle the exception (print, log, etc.)
+        flash('An error occurred while leaving the group.', 'error')
+        return redirect('/dashboard')
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+          
 @socketio.on('create_group')
 def handle_create_group(data):
     group_name = data['group_name']
@@ -294,28 +341,38 @@ def handle_create_group(data):
           user=os.environ['PGUSER'],
           password=os.environ['PGPASSWORD'],
           host=os.environ['PGHOST']
-      )
-      
+        )
+
         cur = conn.cursor()
 
-        # Insert the group into the 'groups' table
-        cur.execute("INSERT INTO groups (group_name) VALUES (%s) RETURNING group_id", (group_name,))
-        group_id = cur.fetchone()[0]
+        # Check if the group already exists in the 'groups' table
+        cur.execute("SELECT group_id FROM groups WHERE group_name = %s", (group_name,))
+        existing_group_id = cur.fetchone()
 
-        # Insert group members into the 'group_members' table
-        for member in group_members:
-            cur.execute("INSERT INTO group_members (group_id, username) VALUES (%s, %s)", (group_id, member))
+        if existing_group_id:
+            # If the group already exists, emit an error message or handle it as needed
+            print(f"Group '{group_name}' already exists.")
+            emit('group_creation_error', {'error_message': f"Group '{group_name}' already exists."})
+        else:
+            # Insert the group into the 'groups' table
+            cur.execute("INSERT INTO groups (group_name) VALUES (%s) RETURNING group_id", (group_name,))
+            group_id = cur.fetchone()[0]
 
-        conn.commit()
+            # Insert group members into the 'group_members' table
+            for member in group_members:
+                cur.execute("INSERT INTO group_members (group_id, username) VALUES (%s, %s)", (group_id, member))
 
-        # Broadcast a message to all members of the group
-        for member in group_members:
-            room = f"{member}"
-            emit('new_group', {'group_name': group_name}, room=room)
+            conn.commit()
+
+            # Broadcast a message to all members of the group
+            for member in group_members:
+                room = f"{member}"
+                emit('new_group', {'group_name': group_name}, room=room)
 
     except Exception as e:
         # Handle the exception (print, log, etc.)
         print(f"Error creating group: {e}")
+        emit('group_creation_error', {'error_message': 'An error occurred while creating the group.'})
 
     finally:
         cur.close()
@@ -1239,7 +1296,9 @@ def register():
   if username in existing_usernames:
     flash('Username already exists', 'error')
     return redirect('/register')
-
+  if username[0] == '_':
+    flash('Cannot start with an underscore', 'error')
+    return redirect('/register')
   if len(password) < 6:
     flash('Password too short', 'error')
     return redirect('/register')

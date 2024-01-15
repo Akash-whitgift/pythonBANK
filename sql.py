@@ -15,7 +15,7 @@ cps = 0
 # Create a cursor object using the cursor() method
 cursor = conn.cursor()
 cursor.execute("""
-DELETE FROM messages WHERE recipient = '';
+SELECT * FROM groups
 """)
 print(datetime.datetime.utcnow())
 # Commit the changes to the database

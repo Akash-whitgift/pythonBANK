@@ -16,6 +16,7 @@
 
     socket.on('new_message', function(data) {
         const currentChat = document.getElementById('realname').innerText;
+      if (currentChat == data.recipient) {
         const groupChatName = currentChat.startsWith('_') ? currentChat.slice(1) : currentChat;
             // Reload the chat history based on the type of chat
             if (!currentChat.startsWith('_')) {
@@ -25,25 +26,35 @@
                 // Reload chat history for group chats
                 loadGroupMessages(groupChatName);
             }
+      }
+      else if (currentChat == data.sender) {
+        const groupChatName = currentChat.startsWith('_') ? currentChat.slice(1) : currentChat;
+        // Reload the chat history based on the type of chat
+        if (!currentChat.startsWith('_')) {
+            // Reload chat history for private chats
+            loadPastMessages(currentChat);
+        } else {
+            // Reload chat history for group chats
+            loadGroupMessages(groupChatName);
+        }
+      }
+      
     });
 
-
-    socket.on('message', function (data) {
-        // Log a message to the console when a new message is received
-        console.log('Received a new message:', data);
-
-        // Call appendMessages to add the new message to the container
-        appendMessages([data]);
+    socket.on('group_creation_error', function (data) {
+        document.getElementById('error_messages').innerHTML = data.error_message;
     });
 
     function loadChat(username) {
         console.log("loading chat");
+        document.getElementById('error_messages').innerHTML = "";
         document.getElementById('currentChat').innerText = username;
         document.getElementById('realname').innerText = username;
 
         if (username.startsWith('_')) {
-            loadGroupMessages(username);
+            loadGroupInformation(username);
         } else {
+            document.getElementById('members').innerHTML = '';
             // Fetch and display private chat messages for the selected user
             loadPastMessages(username);
         }
@@ -171,6 +182,11 @@
         // Append the new group list item to the group list
         groupList.appendChild(groupListItem);
     }
+
+    function loadGroupInformation(groupName){
+      loadGroupMessages(groupName)
+      loadGroupMembers(groupName)
+    }
     
     function loadGroupMessages(groupName) {
     document.getElementById('currentChat').innerText = groupName;
@@ -190,6 +206,28 @@
         })
         .catch(error => console.error('Error loading group messages:', error));
     }
+    function loadGroupMembers(groupName) {
+        // Fetch group members from the server
+        fetch(`/get_group_members?group_name=${groupName}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(members => {
+            // Display group members (replace with your logic)
+          const membersElement = document.getElementById('members');
+          membersElement.innerHTML = `Group Members: ${members.join(', ')}`;
+        })
+        .catch(error => console.error('Error loading group members:', error));
+    }
+    
+    function leaveGroup(groupName) {
+        // Redirect to the leave group route with the group name as a parameter
+        window.location.href = `/leave_group/${groupName}`;
+    }
+    
   </script>
 </head>
   <body>
@@ -211,9 +249,12 @@
         {% for username in active_chats %}
             <li class="chat-list-item" onclick="loadChat('{{ username }}')">{{ username }}</li>
         {% endfor %}
+        <hr>
         <h3>Group Chats</h3>
+        <hr>
         {% for group in group_list %}
-            <li class="chat-list-item" onclick="loadGroupMessages('{{ group }}')">{{ group }}</li>
+            <li class="chat-list-item" onclick="loadChat('{{ group }}')">{{ group }}<p> </p><button onclick="leaveGroup('{{ group }}')">Leave Group</button></li>
+            
         {% endfor %}
       </ul>
   </div>
@@ -221,13 +262,15 @@
   <div class="chat-area">
       <div class="chat-header">
           <h1>Messaging</h1>
+          <p id='error_messages'></p>
           <p><strong>Current Chat:</strong> <span id="currentChat"></span></p>
+          <p id='members'></p>
       </div>
       <ul id="messageList" class="messagecard"></ul>
       <textarea class="message-input" id="messageInput" rows="5" placeholder="Type your message here"></textarea>
-      <button class="send-button" onclick="sendMessage()">Send</button>
-    <a href='/dashboard'><button class='ui'>Back to Dashboard</button></a>
-    <p id='realname' ></p>
+      <p><button class="send-button" onclick="sendMessage()">Send</button>
+    <a href='/dashboard'><button class='ui'>Back to Dashboard</button></a></p>
+    <p id='realname' hidden></p>
   </div>
     </div>
   </body>
