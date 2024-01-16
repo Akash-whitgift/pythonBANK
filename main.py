@@ -1482,7 +1482,7 @@ def message():
     message = request.form['message']
     save_message(sender, recipient, message)
   group_list = get_group_list()
-
+  print(group_list)
   current_user = session.get('username')
   active_chats = get_active_chats(current_user)
   return render_template('message.html',

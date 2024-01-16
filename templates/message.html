@@ -253,7 +253,7 @@
         <h3>Group Chats</h3>
         <hr>
         {% for group in group_list %}
-            <li class="chat-list-item" onclick="loadChat('{{ group }}')">{{ group }}<p> </p><button onclick="leaveGroup('{{ group }}')">Leave Group</button></li>
+            <li class="chat-list-item" onclick="loadGroupMessages('{{ group }}')">{{ group }}<p> </p><button onclick="leaveGroup('{{ group }}')">Leave Group</button></li>
             
         {% endfor %}
       </ul>
