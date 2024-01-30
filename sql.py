@@ -15,7 +15,8 @@ cps = 0
 # Create a cursor object using the cursor() method
 cursor = conn.cursor()
 cursor.execute("""
-SELECT * FROM groups
+UPDATE users
+SET frozen = false;
 """)
 print(datetime.datetime.utcnow())
 # Commit the changes to the database
@@ -24,3 +25,5 @@ conn.commit()
 # Close the cursor and connection
 cursor.close()
 conn.close()
+
+

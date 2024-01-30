@@ -147,7 +147,8 @@
             alert('Please enter at least one group member.');
             return;
         }
-
+      
+        loadGroupInformation(groupName);
         // Send the group name and members to the server to create the group
         socket.emit('create_group', { group_name: groupName, members: membersArray });
       console.log('GC done')
@@ -253,7 +254,7 @@
         <h3>Group Chats</h3>
         <hr>
         {% for group in group_list %}
-            <li class="chat-list-item" onclick="loadGroupMessages('{{ group }}')">{{ group }}<p> </p><button onclick="leaveGroup('{{ group }}')">Leave Group</button></li>
+            <li class="chat-list-item" onclick="loadGroupInformation('{{ group }}')">{{ group }}<p> </p><button onclick="leaveGroup('{{ group }}')">Leave Group</button></li>
             
         {% endfor %}
       </ul>

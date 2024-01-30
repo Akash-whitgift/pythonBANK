@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Account Frozen</title>
+  </head>
+  <body>
+    <div class='card'>
+      <h1>Account Frozen</h1>
+      <p>Your account has been frozen, contact an admin if you think this is a mistake</p>
+      <p><form action='/signout' method='POST'>
+        <button class='ui'>Signout</button>
+      </form></p>
+    </div>
+  </body>
+</html>

@@ -2,7 +2,7 @@ from gevent import monkey
 monkey.patch_all()
 from gevent.pywsgi import WSGIServer
 from flask_compress import Compress
-from flask import Flask, render_template, request, redirect, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, session, flash, jsonify, send_from_directory
 from flask_socketio import SocketIO, emit, join_room, leave_room
 import flask_socketio
 from flask_sslify import SSLify
@@ -192,10 +192,15 @@ def delete_account(username):
   cur.execute("DELETE FROM users WHERE username = %s", (username,))
   cur.execute("DELETE FROM messages WHERE sender = %s",(username,))
   cur.execute("DELETE FROM messages WHERE recipient = %s",(username,))
+  
   conn.commit()
+  log_activity(username,"Deleted Account")
 
 @app.route('/delete-account', methods=['POST'])
 def delete_account_for_user():
+  if session['frozen'] == True:
+    return redirect('/check-banned')
+    
     username = session['username']
     conn = psycopg2.connect(
       dbname=os.environ['PGDATABASE'],
@@ -206,12 +211,17 @@ def delete_account_for_user():
     cur = conn.cursor()
     # Remove the user's data from the database
     cur.execute("DELETE FROM users WHERE username = %s", (username,))
+  
     cur.execute("DELETE FROM messages WHERE sender = %s",(username,))
     cur.execute("DELETE FROM messages WHERE receiver = %s",(username,))
-
-    # Commit the changes to the database
+    # Commit the changes to the databases
     conn.commit()
     return redirect('/')
+
+# @app.route('/purchase')
+def purchase():
+  return render_template('purchase.html')
+
 
 def get_group_members(group_name):
   try:
@@ -479,6 +489,8 @@ def save_message(sender, recipient, message):
       INSERT INTO messages (sender, recipient, message, date)
           VALUES (%s, %s, %s, %s)
       """, (sender, recipient, message, timestamp))
+      cur.execute("""
+      INSERT INTO message_log (sender_username, receiver_username, message_text, sent_timestamp) VALUES (%s, %s, %s, %s)""",(sender,recipient,message,timestamp))
 
       conn.commit()
 
@@ -858,6 +870,7 @@ def transfer_money(sender, recipient, amount):
       update_balance(sender, sender_balance)
       update_balance(recipient, recipient_balance)
       log_activity(sender, f"Transferred {amount} to {recipient}")
+      log_activity(recipient, f"Received {amount} from {sender}")
       flash("Money transfer successful", 'success')
       time.sleep(1)
       return redirect('/transfer')
@@ -980,6 +993,9 @@ def play_higher_lower():
   is_banned = session.get('is_banned') 
   if is_banned:
       return redirect('/check-banned')
+  if session['frozen'] == True:
+    return redirect('/check-banned')
+    
   if request.method == 'GET':
     return render_template('Higherlower.html',
                            messages=flask.get_flashed_messages())
@@ -1012,7 +1028,7 @@ def user_lookup():
           host=os.environ['PGHOST']
       )
       cur = conn.cursor()
-      cur.execute("SELECT username, hashed_password, admin_status, balance, banned_status, account_created, last_login FROM users WHERE username = %s", (lookup_username,))
+      cur.execute("SELECT username, hashed_password, admin_status, balance, banned_status, account_created, last_login, frozen FROM users WHERE username = %s", (lookup_username,))
       user = cur.fetchone()
 
 
@@ -1025,7 +1041,8 @@ def user_lookup():
           'balance': user[3],
           'banned': user[4],
           'created': user[5],
-          'login': user[6]
+          'login': user[6],
+          'frozen': user[7]
         }
         # Fetch all users if needed for the admin-control page
         conn = psycopg2.connect(
@@ -1035,7 +1052,7 @@ def user_lookup():
             host=os.environ['PGHOST']
         )
         cur = conn.cursor()
-        cur.execute("SELECT username, hashed_password, admin_status, balance, banned_status, account_created, last_login FROM users")
+        cur.execute("SELECT username, hashed_password, admin_status, balance, banned_status, account_created, last_login, frozen FROM users")
         users = cur.fetchall()
         # Convert the list of tuples into a list of dictionaries for the template
         users = [{'username': u[0], 'password': u[1], 'is_admin': u[2], 'balance': u[3], 'banned': u[4], 'created':u[5], 'login':u[6]} for u in users]
@@ -1061,7 +1078,7 @@ def admin_user_actions(username):
         host=os.environ['PGHOST']
     )
     cur = conn.cursor()
-    cur.execute("SELECT username, hashed_password, admin_status, balance, banned_status, account_created, last_login FROM users WHERE username = %s", (username,))
+    cur.execute("SELECT username, hashed_password, admin_status, balance, banned_status, account_created, last_login, frozen FROM users WHERE username = %s", (username,))
     user = cur.fetchone()
 
     if user:
@@ -1072,7 +1089,8 @@ def admin_user_actions(username):
             'balance': user[3],
             'banned': user[4],
             'created': user[5],
-            'login': user[6]
+            'login': user[6],
+            'frozen': user[7]
         }
 
         return render_template('admin_user_actions.html', user=user_details)
@@ -1209,6 +1227,9 @@ def user_login():
 
   return redirect('/')
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico',mimetype='image/vnd.microsoft.icon')
 
 @app.route('/check-banned', methods=['GET'])
 def check_banned():
@@ -1223,9 +1244,19 @@ def check_banned():
         host=os.environ['PGHOST']
     )
     cur = conn.cursor()
-    cur.execute("SELECT banned_status FROM users WHERE username = %s", (username,))
+
+    cur.execute("SELECT frozen FROM users WHERE username = %s", (username,))
+
     result = cur.fetchone()
 
+    if result and result[0]:
+      session['frozen'] = True
+      return render_template('frozen.html')
+    else:
+      session['frozen'] = False
+    cur.execute("SELECT banned_status FROM users WHERE username = %s", (username,))
+    result = cur.fetchone()
+    
     if result and result[0]:
       session['is_banned'] = True
       return render_template('delete_account.html')  # Create a template for account deletion
@@ -1254,6 +1285,11 @@ def delete_account_route():
 
 @app.route('/leaderboard')
 def leaderboard():
+  if session['frozen'] == True:
+    return redirect('/check-banned')
+  if session['is_banned'] == True:
+    return redirect('/check-banned')
+  
   users = get_user_accounts()
   sorted_users = sorted(users, key=lambda user: user['balance'], reverse=True)
   return render_template('leaderboard.html', users=sorted_users)
@@ -1314,8 +1350,8 @@ def register():
   )
   cur = conn.cursor()
   cur.execute(
-    "INSERT INTO users (username, hashed_password, salt, admin_status, balance, banned_status, cps, account_created) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-    (username, hashed_password, salt, False, 100, False, 0, datetime.datetime.utcnow())
+    "INSERT INTO users (username, hashed_password, salt, admin_status, balance, banned_status, cps, account_created, frozen) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+    (username, hashed_password, salt, False, 100, False, 0, datetime.datetime.utcnow(), False)
   )
   cur.execute('UPDATE users SET last_login = %s WHERE username = %s', (datetime.datetime.utcnow(), username))
   conn.commit()
@@ -1323,6 +1359,36 @@ def register():
   flash('Registration successful', 'success')
   return redirect('/check-banned')
 
+@app.route('/admin-control/update-frozen-users', methods=['POST'])
+def update_frozen_users():
+  if 'username' not in session or session['is_admin'] == 'False':
+    flash("Access Denied")
+    return redirect('/admin-control')
+
+  username = request.form['username']
+  action = request.form['action']
+  if username == 'Arjun':
+    flash('You do not have the permissions to freeze this user')
+  else:
+    conn = psycopg2.connect(
+        dbname=os.environ['PGDATABASE'],
+        user=os.environ['PGUSER'],
+        password= os.environ['PGPASSWORD'],
+        host=os.environ['PGHOST']
+    )
+    cur = conn.cursor()
+    if action == 'add':
+      # Set the banned_status to True for the specified username
+      cur.execute("UPDATE users SET frozen = True WHERE username = %s", (username,))
+      flash(f"User '{username}' added to Frozen Users", 'success')
+    elif action == 'remove':
+      # Set the banned_status to False for the specified username
+      cur.execute("UPDATE users SET frozen = False WHERE username = %s", (username,))
+      flash(f"User '{username}' removed from Frozen Users", 'success')
+
+    conn.commit()
+
+  return redirect('/admin-control')
 
 @app.route('/admin-control/update-banned-users', methods=['POST'])
 def update_banned_users():
@@ -1475,7 +1541,12 @@ def get_group_list():
 def message():
   if 'username' not in session:
     return redirect('/')
-
+    
+  if session['is_banned'] == True:
+    return redirect('/check-banned')
+  
+  if session['frozen'] == True:
+    return redirect('/check-banned')
   if request.method == 'POST':
     sender = session['username']
     recipient = request.form['recipient']
@@ -1513,6 +1584,14 @@ def dashboard():
   if result and result[0]:
     session['is_banned'] = True
     return redirect('/check-banned')
+
+  cur.execute("SELECT frozen FROM users WHERE username = %s", (username,))
+  result = cur.fetchone()
+
+  if result and result[0]:
+    session['frozen'] = True
+    return redirect('/check-banned')
+  
   username = session['username']
   balance = get_balance(username)
   is_admin = check_admin_status(username)
@@ -1530,6 +1609,9 @@ def quiz():
   is_banned = session.get('is_banned') 
   if is_banned:
       return redirect('/check-banned')
+  if session['frozen'] == True:
+    return redirect('/check-banned')
+    
 
   username = session['username']
   user = get_user_by_username(username)
@@ -1605,20 +1687,7 @@ def sign_out():
   return redirect('/')
 
 
-@app.route('/message/<username>')
-def message_user(username):
-  if 'username' not in session:
-    return redirect('/')
 
-  recipient = get_user_by_username(username)
-  if not recipient:
-    flash(f"User '{username}' not found.", 'error')
-    return redirect('/message')
-
-  return render_template('message.html',
-                         users=get_user_accounts(),
-                         recipient=recipient,
-                         message_history=message_history)
 
 @app.route('/toggle-admin-only-mode', methods=['POST'])
 def toggle_admin_only_mode():
@@ -1668,10 +1737,13 @@ def admin_control():
 @app.route('/cps', methods=['GET'])
 def cps():
   if 'username' in session:
-    return render_template('cps.html')
     is_banned = session.get('is_banned') 
     if is_banned:
         return redirect('/check-banned')
+    if session['frozen'] == True:
+      return redirect('/check-banned')
+    return render_template('cps.html')
+      
   else:
     return redirect('/')
 
@@ -1725,6 +1797,9 @@ def clicks_leaderboard():
   is_banned = session.get('is_banned') 
   if is_banned:
       return redirect('/check-banned')
+  if session['frozen'] == True:
+    return redirect('/check-banned')
+    
   conn = psycopg2.connect(
       dbname=os.environ['PGDATABASE'],
       user=os.environ['PGUSER'],
@@ -1747,12 +1822,17 @@ def clicks_leaderboard():
 def settings():
   if 'username' not in session:
     return redirect('/')
+  frozen_status = session.get('frozen')
+  if frozen_status == True:
+    return redirect('/check-banned')
   user_lookup = get_all_user_info(session['username'])
   return render_template('settings.html', user_lookup=user_lookup)
 
 
 @app.route('/user-delete', methods=["POST"])
 def user_delete():
+  if session['frozen'] == True:
+    return redirect('/check-banned')
   username = session['username']
   delete_account(username=username)
   flash("Account Deleted", "info")
