@@ -118,6 +118,14 @@ lint = ["pre-commit"]
 test = ["hypothesis", "pytest", "pytest-benchmark", "pytest-cov", "pytest-xdist", "sortedcollections", "sortedcontainers", "sphinx"]
 
 [[package]]
+name = "blinker"
+version = "1.7.0"
+description = "Fast, simple object-to-object and broadcast signaling"
+category = "main"
+optional = false
+python-versions = ">=3.8"
+
+[[package]]
 name = "brotli"
 version = "1.0.9"
 description = "Python bindings for the Brotli compression library"
@@ -230,6 +238,18 @@ python-versions = "*"
 [package.dependencies]
 brotli = "*"
 flask = "*"
+
+[[package]]
+name = "flask-mail"
+version = "0.9.1"
+description = "Flask extension for sending email"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+blinker = "*"
+Flask = "*"
 
 [[package]]
 name = "flask-socketio"
@@ -783,7 +803,7 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.10.0,<3.11"
-content-hash = "defd6ea6d2459bbda6d6971496f75eef4f4be831068e66edfe9d42c0f6ddc595"
+content-hash = "237e50fb4e7f971d94d2ceb99da0a582f510c0d9c95dc0066ca4e4f9911e77c3"
 
 [metadata.files]
 aiohttp = []
@@ -795,6 +815,7 @@ attrs = []
 bard = []
 bcrypt = []
 bidict = []
+blinker = []
 brotli = []
 certifi = []
 cffi = []
@@ -805,6 +826,7 @@ cryptography = []
 debugpy = []
 flask = []
 flask-compress = []
+flask-mail = []
 flask-socketio = []
 flask-sslify = []
 frozenlist = []

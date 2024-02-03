@@ -1,10 +1,12 @@
 from gevent import monkey
 monkey.patch_all()
+import uuid
 from gevent.pywsgi import WSGIServer
 from flask_compress import Compress
 from flask import Flask, render_template, request, redirect, session, flash, jsonify, send_from_directory
 from flask_socketio import SocketIO, emit, join_room, leave_room
 import flask_socketio
+from flask_mail import Mail, Message
 from flask_sslify import SSLify
 import flask
 import random
@@ -43,6 +45,15 @@ def get_admin_only_mode():
   admin_only_mode = cur.fetchone()[0] == 'True'  # Convert to boolean
   return admin_only_mode
 ADMIN_ONLY_MODE = get_admin_only_mode()  # Fetch initial value from database
+app.config['MAIL_SERVER'] = 'smtppro.zoho.eu'
+app.config['MAIL_PORT'] = 465
+app.config['MAIL_USE_SSL'] = True
+app.config['MAIL_USERNAME'] = 'verification@arjun.bond'  
+app.config['MAIL_DEFAULT_SENDER'] = 'verification@arjun.bond'
+app.config['MAIL_PASSWORD'] = os.environ['MAIL_PASSWORD']
+
+mail = Mail(app)
+
 questions = [
   {
     'question': 'What is the atomic number of hydrogen?',
@@ -161,8 +172,83 @@ questions = [
     'between 22.4 and 22.9 centimeters'
   },
 ]
+@socketio.on('verify')
+def handle_verification(username):
+    emit('verified', room=username)
 
 
+@app.route('/change-email-form', methods=["GET"])
+def change_email():
+  if 'username' not in session:
+    return redirect('/')
+  conn = psycopg2.connect(
+    dbname=os.environ['PGDATABASE'],
+    user=os.environ['PGUSER'],
+    password= os.environ['PGPASSWORD'],
+    host=os.environ['PGHOST']
+    )
+  cur = conn.cursor()
+  cur.execute("SELECT id FROM users WHERE username = %s", (session['username'],))
+  id = cur.fetchone()[0]
+  username = session['username']
+  return render_template('change_email.html', username = username, user_id = id)
+  
+@app.route('/change-email/<int:id>/<username>', methods=["POST"])
+def change_email_route(id, username):
+  cusername = session.get('username')
+  email = request.form['email']
+  if cusername == None:
+    return redirect('/')
+  if cusername != username:
+    return redirect('/')
+  
+  conn = psycopg2.connect(
+    dbname=os.environ['PGDATABASE'],
+    user=os.environ['PGUSER'],
+    password= os.environ['PGPASSWORD'],
+    host=os.environ['PGHOST']
+    )
+  cur = conn.cursor()
+
+  cur.execute("SELECT id FROM users WHERE username = %s", (username,))
+  cid = cur.fetchone()[0]
+  if cid != id:
+    flash('An error occurred',"error")
+    return redirect('/')
+  verification_token = str(uuid.uuid4().hex)
+  cur.execute("UPDATE users SET verified = %s, verification_token = %s, email = %s WHERE username = %s", (False, verification_token, email, username,))
+
+  conn.commit()
+  msg = Message('Verify Your Account', recipients=[email])
+  msg.html = render_template('verification_email.html', user_id=id, token=verification_token)
+  mail.send(msg)
+  return redirect('/verify')
+
+@app.route('/verify/<int:user_id>/<token>')
+def verify(user_id, token):
+    conn = psycopg2.connect(
+    dbname=os.environ['PGDATABASE'],
+    user=os.environ['PGUSER'],
+    password= os.environ['PGPASSWORD'],
+    host=os.environ['PGHOST']
+    )
+    cur = conn.cursor()
+    print(user_id)
+    cur.execute("SELECT verification_token FROM users WHERE id = %s", (user_id,))
+    expected_token = cur.fetchone()[0]
+    print('token',expected_token)
+    if token == expected_token:
+        # Mark user as verified
+        cur.execute("UPDATE users SET verified = True WHERE id = %s", (user_id,))
+        conn.commit()
+        cur.execute("SELECT username FROM users WHERE id = %s", (user_id,))
+        username = cur.fetchone()[0]
+        socketio.emit('verified',room=username)
+        session["username"] = username
+        return render_template("verification_success.html")
+    else:
+        return render_template('verification_failed.html')
+    
 def check_admin_status(username):
     conn = psycopg2.connect(
         dbname=os.environ['PGDATABASE'],
@@ -190,6 +276,7 @@ def delete_account(username):
   )
   cur = conn.cursor()
   cur.execute("DELETE FROM users WHERE username = %s", (username,))
+  cur.execute("DELETE FROM logs WHERE username = %s", (username,))
   cur.execute("DELETE FROM messages WHERE sender = %s",(username,))
   cur.execute("DELETE FROM messages WHERE recipient = %s",(username,))
   
@@ -211,7 +298,7 @@ def delete_account_for_user():
     cur = conn.cursor()
     # Remove the user's data from the database
     cur.execute("DELETE FROM users WHERE username = %s", (username,))
-  
+    cur.execute("DELETE FROM logs WHERE username = %s", (username,))
     cur.execute("DELETE FROM messages WHERE sender = %s",(username,))
     cur.execute("DELETE FROM messages WHERE receiver = %s",(username,))
     # Commit the changes to the databases
@@ -402,7 +489,12 @@ def get_messages():
 
     return jsonify(messages_list)
 #Save sent message
-
+@app.route('/verify')
+def wait_verify():
+  username = session.get('username')
+  if username == None:
+    return redirect('/')
+  return render_template('verification_wait.html')
 # Broadcast the message to all connected clients
 @socketio.on('connect')
 def handle_connect():
@@ -1107,7 +1199,7 @@ def get_all_user_info(username):
         host=os.environ['PGHOST']
     )
     cur = conn.cursor()
-    cur.execute("SELECT username, hashed_password, admin_status, balance, banned_status, account_created, last_login, cps FROM users WHERE username = %s", (username,))
+    cur.execute("SELECT username, hashed_password, admin_status, balance, banned_status, account_created, last_login, cps, email FROM users WHERE username = %s", (username,))
     user = cur.fetchone()
     if user:
       user_info = {
@@ -1118,7 +1210,8 @@ def get_all_user_info(username):
           'banned': user[4],
           'created': user[5],
           'login': user[6],
-          'cps': user[7]
+          'cps': user[7],
+          'email': user[8]
       }
       return user_info
     else:
@@ -1203,7 +1296,7 @@ def user_login():
   
 
   if result is None:
-    flash('Invalid username', 'error')
+    flash('Username or password incorrect', 'error')
     return redirect('/')
 
   hashed_password, salt, is_admin = result
@@ -1222,7 +1315,7 @@ def user_login():
     flash('Login successful', 'success')
     return redirect('/check-banned')
   else:
-    flash('Invalid password', 'error')
+    flash('Username or password incorrect', 'error')
     return redirect('/')
 
   return redirect('/')
@@ -1245,6 +1338,15 @@ def check_banned():
     )
     cur = conn.cursor()
 
+    cur.execute("SELECT email FROM users WHERE username = %s",(username,))
+    result = cur.fetchone()
+    if result[0] is None:
+      return redirect('/change-email-form')
+    cur.execute("SELECT verified FROM users WHERE username = %s", (username,))
+    result = cur.fetchone()
+    if result and result[0] == 0:
+      return redirect('/verify')
+    
     cur.execute("SELECT frozen FROM users WHERE username = %s", (username,))
 
     result = cur.fetchone()
@@ -1310,7 +1412,8 @@ def register():
   username = request.form['username']
   password = request.form['password']
   confirm_password = request.form['confirm_password']
-
+  email = request.form['email']
+  
   if password != confirm_password:
     flash('Passwords do not match', 'error')
     return redirect('/register')
@@ -1341,20 +1444,26 @@ def register():
 
   salt = bcrypt.gensalt().decode()
   hashed_password = bcrypt.hashpw(password.encode(), salt.encode()).decode()
-  
+  verification_token = str(uuid.uuid4().hex)
   conn = psycopg2.connect(
       dbname=os.environ['PGDATABASE'],
       user=os.environ['PGUSER'],
       password= os.environ['PGPASSWORD'],
       host=os.environ['PGHOST']
   )
+  
   cur = conn.cursor()
   cur.execute(
-    "INSERT INTO users (username, hashed_password, salt, admin_status, balance, banned_status, cps, account_created, frozen) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
-    (username, hashed_password, salt, False, 100, False, 0, datetime.datetime.utcnow(), False)
+    "INSERT INTO users (username, hashed_password, salt, admin_status, balance, banned_status, cps, account_created, frozen, email, verification_token) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s,%s,%s)",
+    (username, hashed_password, salt, False, 100, False, 0, datetime.datetime.utcnow(), False, email, verification_token)
   )
   cur.execute('UPDATE users SET last_login = %s WHERE username = %s', (datetime.datetime.utcnow(), username))
   conn.commit()
+  cur.execute('SELECT id FROM users WHERE username = %s', (username,))
+  user_id = cur.fetchone()[0]
+  msg = Message('Verify Your Account', recipients=[email])
+  msg.html = render_template('verification_email.html', user_id=user_id, token=verification_token)
+  mail.send(msg)
   session['username'] = username
   flash('Registration successful', 'success')
   return redirect('/check-banned')
@@ -1380,10 +1489,14 @@ def update_frozen_users():
     if action == 'add':
       # Set the banned_status to True for the specified username
       cur.execute("UPDATE users SET frozen = True WHERE username = %s", (username,))
+      log_activity(username, "Frozen user")
+      log_activity(session['username'], f"Froze {username}'s acccount")
       flash(f"User '{username}' added to Frozen Users", 'success')
     elif action == 'remove':
       # Set the banned_status to False for the specified username
       cur.execute("UPDATE users SET frozen = False WHERE username = %s", (username,))
+      log_activity(username, "Thawed user")
+      log_activity(session['username'], f"Thawed {username}'s acccount")
       flash(f"User '{username}' removed from Frozen Users", 'success')
 
     conn.commit()

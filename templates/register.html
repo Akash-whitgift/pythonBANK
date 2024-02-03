@@ -2,6 +2,44 @@
 <html>
 <head>
     <title>Registration</title>
+  <script defer>
+    window.onload = function () {
+      function check_length() {
+          setTimeout(function () {
+              let password = document.getElementById('password').value;
+              if (password.length < 6) {
+                  document.getElementById('password').style.borderColor = "red";
+                  document.getElementById('error_notifier').innerHTML = "Password must be at least 6 characters long";
+              } else {
+                  document.getElementById('password').style.borderColor = "green";
+                  document.getElementById('error_notifier').innerHTML = "";
+              }
+          }, 200);
+      }
+
+      function check_match() {
+          setTimeout(function () {
+              let password = document.getElementById('password').value;
+              let c_password = document.getElementById('confirm_password').value;
+
+              if (password != c_password) {
+                  document.getElementById('password').style.borderColor = "red";
+                  document.getElementById('confirm_password').style.borderColor = "red";
+                  document.getElementById('error_notifier').innerHTML = "Passwords do not match";
+              } else {
+                  document.getElementById('password').style.borderColor = "green";
+                  document.getElementById('confirm_password').style.borderColor = "green";
+                  document.getElementById('error_notifier').innerHTML = "";
+              }
+          }, 200); // 200 milliseconds (0.2 seconds) delay
+      }
+
+        document.getElementById('password').addEventListener("keydown", check_length);
+        document.getElementById('confirm_password').addEventListener("keydown", check_match);
+    }
+
+  </script>
+
 </head>
 <body>
   <div class='card'>
@@ -20,8 +58,10 @@
      
         <input type="password" name="password" id="password" placeholder="password" required><br>
         <input type="password" name="confirm_password" id="confirm_password" required placeholder="Confirm Password" ><br>
+        <input type="email" name="email" id="email" placeholder="Email" required><br>
         <input type="submit" value="Register">
     </form>
+    <p id='error_notifier'></p>
     <hr>
     <p class='opaque'>Already have an account? <a href="/">Login</a></p>
   </div>
@@ -85,6 +125,9 @@
       color: white;
     }
     .flash-messages {
+      color:white;
+    }
+    p {
       color:white;
     }
   </style>

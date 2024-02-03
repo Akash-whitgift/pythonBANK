@@ -15,6 +15,7 @@ bard = "^0.1"
 psycopg2-binary = "^2.9.9"
 Flask-SocketIO = "^5.3.6"
 Flask-SSLify = "^0.1.5"
+Flask-Mail = "^0.9.1"
 
 [tool.poetry.dev-dependencies]
 debugpy = "^1.6.2"
