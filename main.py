@@ -1120,7 +1120,7 @@ def user_lookup():
           host=os.environ['PGHOST']
       )
       cur = conn.cursor()
-      cur.execute("SELECT username, hashed_password, admin_status, balance, banned_status, account_created, last_login, frozen FROM users WHERE username = %s", (lookup_username,))
+      cur.execute("SELECT username, hashed_password, admin_status, balance, banned_status, account_created, last_login, frozen, email FROM users WHERE username = %s", (lookup_username,))
       user = cur.fetchone()
 
 
@@ -1134,7 +1134,8 @@ def user_lookup():
           'banned': user[4],
           'created': user[5],
           'login': user[6],
-          'frozen': user[7]
+          'frozen': user[7],
+          'email': user[8]
         }
         # Fetch all users if needed for the admin-control page
         conn = psycopg2.connect(
@@ -1144,7 +1145,7 @@ def user_lookup():
             host=os.environ['PGHOST']
         )
         cur = conn.cursor()
-        cur.execute("SELECT username, hashed_password, admin_status, balance, banned_status, account_created, last_login, frozen FROM users")
+        cur.execute("SELECT username, hashed_password, admin_status, balance, banned_status, account_created, last_login, frozen, email FROM users")
         users = cur.fetchall()
         # Convert the list of tuples into a list of dictionaries for the template
         users = [{'username': u[0], 'password': u[1], 'is_admin': u[2], 'balance': u[3], 'banned': u[4], 'created':u[5], 'login':u[6]} for u in users]
@@ -2035,7 +2036,7 @@ def update_password(username, new_password, new_salt):
     for record in salt_data:
       salts_file.write(', '.join(record) + '\n')
 
-
+"""
 def delete_old_password(username):
   # Delete the old password hash from the database
   with open('database.csv', 'r') as db_file:
@@ -2050,9 +2051,10 @@ def delete_old_password(username):
     for record in data:
       db_file.write(', '.join(record) + '\n')
 
+This code is deprecated, but im leaving it here :)
+"""
 
 if __name__ == "__main__":
   Compress(app)
   http_server = WSGIServer(('', 5000), app)
   http_server.serve_forever()
-  

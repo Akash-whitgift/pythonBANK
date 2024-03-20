@@ -105,3 +105,7 @@ start = "pylsp"
 [deployment]
 run = ["sh", "-c", "python main.py"]
 deploymentTarget = "cloudrun"
+
+[[ports]]
+localPort = 5000
+externalPort = 80

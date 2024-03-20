@@ -15,7 +15,7 @@ cps = 0
 # Create a cursor object using the cursor() method
 cursor = conn.cursor()
 cursor.execute("""
-DELETE FROM users WHERE username = '1234567'
+DELETE email FROM users WHERE username = 'hrishibishy'
 """)
 print(datetime.datetime.utcnow())
 # Commit the changes to the database
