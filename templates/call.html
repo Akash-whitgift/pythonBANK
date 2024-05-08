@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Call</title>
+    <style>
+        video {
+            width: 50%;
+            height: auto;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Video Call</h1>
+    <h2>Incoming Call</h2>
+    <video id="local-video" autoplay muted></video>
+    <video id="remote-video" autoplay></video>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.3/socket.io.js"></script>
+    <script>
+        var socket = io.connect('https://' + document.domain + ':' + location.port, {
+            transports: ['websocket']
+        });
+
+        socket.on('call_invite', function(data) {
+            var callee = data.callee;
+            var caller = data.caller;
+
+            var acceptCall = confirm(`${caller} is calling you. Do you want to accept the call?`);
+            if (acceptCall) {
+                socket.emit('accept_call', { caller: caller, callee: callee });
+            } else {
+                socket.emit('decline_call', { caller: caller, callee: callee });
+            }
+        });
+
+        socket.on('call_accepted', function(data) {
+            var localVideo = document.getElementById('local-video');
+            var remoteVideo = document.getElementById('remote-video');
+
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                .then(function(stream) {
+                    localVideo.srcObject = stream;
+
+                    var configuration = { iceServers: [{ urls: 'stun:stun.example.org' }] };
+                    var peerConnection = new RTCPeerConnection(configuration);
+
+                    stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+
+                    peerConnection.onicecandidate = function(event) {
+                        if (event.candidate) {
+                            socket.emit('ice_candidate', { candidate: event.candidate });
+                        }
+                    };
+
+                    peerConnection.ontrack = function(event) {
+                        remoteVideo.srcObject = event.streams[0];
+                    };
+
+                    peerConnection.setRemoteDescription(data.offer)
+                        .then(function() {
+                            return peerConnection.createAnswer();
+                        })
+                        .then(function(answer) {
+                            return peerConnection.setLocalDescription(answer);
+                        })
+                        .then(function() {
+                            socket.emit('answer', { answer: peerConnection.localDescription });
+                        })
+                        .catch(function(error) {
+                            console.error('Error creating answer:', error);
+                        });
+                })
+                .catch(function(error) {
+                    console.error('Error accessing media devices:', error);
+                });
+        });
+
+        socket.on('call_declined', function(data) {
+            alert(`${data.callee} has declined your call.`);
+        });
+
+        socket.on('ice_candidate', function(data) {
+            peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate))
+                .catch(function(error) {
+                    console.error('Error adding ICE candidate:', error);
+                });
+        });
+    </script>
+</body>
+</html>

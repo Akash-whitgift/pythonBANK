@@ -15,7 +15,10 @@ cps = 0
 # Create a cursor object using the cursor() method
 cursor = conn.cursor()
 cursor.execute("""
-DELETE email FROM users WHERE username = 'hrishibishy'
+CREATE TABLE tokens (
+username varchar,
+token varchar
+)
 """)
 print(datetime.datetime.utcnow())
 # Commit the changes to the database

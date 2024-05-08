@@ -33,7 +33,9 @@ app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(minutes=360)
 CONFIG_FILE = 'config.ini'
 message_history = []
 leaderboard = []
+ADMIN_ONLY_MODE = False
 def get_admin_only_mode():
+  global ADMIN_ONLY_MODE
   conn = psycopg2.connect(
       dbname=os.environ['PGDATABASE'],
       user=os.environ['PGUSER'],
@@ -41,10 +43,19 @@ def get_admin_only_mode():
       host=os.environ['PGHOST']
   )
   cur = conn.cursor()
-  cur.execute("SELECT feature FROM flags WHERE feature = 'Admin_only_mode'")
-  admin_only_mode = cur.fetchone()[0] == 'True'  # Convert to boolean
+  cur.execute("SELECT enabled FROM flags WHERE feature = 'Admin_only_mode'")
+  results = cur.fetchone()
+  print(results)
+  print(results[0])
+  if results[0] == True:
+    admin_only_mode = True
+  else: 
+    admin_only_mode = False# Convert to boolean
+  ADMIN_ONLY_MODE = admin_only_mode
+  print(ADMIN_ONLY_MODE)
   return admin_only_mode
-ADMIN_ONLY_MODE = get_admin_only_mode()  # Fetch initial value from database
+print(ADMIN_ONLY_MODE)# Fetch initial value from database
+ADMIN_ONLY_MODE = get_admin_only_mode()
 app.config['MAIL_SERVER'] = 'smtppro.zoho.eu'
 app.config['MAIL_PORT'] = 465
 app.config['MAIL_USE_SSL'] = True
@@ -176,6 +187,59 @@ questions = [
 def handle_verification(username):
     emit('verified', room=username)
 
+
+@app.route('/forgotten-password', methods=['POST','GET'])
+def forgotten_password():
+  if request.method == 'GET':
+    return render_template('forgotten_password.html')
+  if request.method == 'POST':
+    username = request.form['username']
+    conn = psycopg2.connect(
+        dbname=os.environ['PGDATABASE'],
+        user=os.environ['PGUSER'],
+        password= os.environ['PGPASSWORD'],
+        host=os.environ['PGHOST']
+    )
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE username = %s", (username,))
+    results = cur.fetchone()
+    if results:
+      token = str(uuid.uuid4())
+      cur.execute("INSERT INTO tokens (username, token) VALUES (%s, %s)", (username, token))
+      conn.commit()
+      email = results[3]
+      message = Message('Password Reset', sender='verification@arjun.bond', recipients=[email])
+      message.body = f'Your password reset link is: https://arjun.bond/reset-password/{token}'
+      mail.send(message)
+      return render_template('forgotten_password_sent.html')
+    else:
+      return render_template('forgotten_password_not_found.html')
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def change_forgotten_password(token):
+  if request.method == 'GET':
+    return render_template('reset_password.html')
+  if request.method == 'POST':
+    password = request.form['password']
+    confirm_password = request.form['Confim_password']
+    conn = psycopg2.connect(
+        dbname=os.environ['PGDATABASE'],
+        user=os.environ['PGUSER'],
+        password= os.environ['PGPASSWORD'],
+        host=os.environ['PGHOST']
+    )
+    cur = conn.cursor()
+    
+    cur.execute("SELECT * FROM tokens WHERE token = %s", (token,))
+    results = cur.fetchone()
+    if results:
+      username = results[0]
+      password_change(username,password,confirm_password)
+      cur.execute("DELETE FROM tokens WHERE token = %s", (token,))
+      cur.commit()
+      return render_template('reset_password_form.html', username=username)
+    else:
+      return render_template('reset_password_invalid.html')
 
 @app.route('/change-email-form', methods=["GET"])
 def change_email():
@@ -758,7 +822,7 @@ def get_leaderboard():
 
 
 def set_admin_only_mode(admin_only_mode):
-  global ADMIN_ONLY_MODE  # Declare intention to modify global variable
+  global ADMIN_ONLY_MODE# Declare intention to modify global variable
   conn = psycopg2.connect(
       dbname=os.environ['PGDATABASE'],
       user=os.environ['PGUSER'],
@@ -768,12 +832,15 @@ def set_admin_only_mode(admin_only_mode):
   cur = conn.cursor()
 
   try:
-      cur.execute("UPDATE flags SET feature = 'admin_only_mode', value = %s WHERE feature = 'Admin_only_mode'", (admin_only_mode,))
+      cur.execute("UPDATE flags SET enabled = %s WHERE feature = 'Admin_only_mode'", (admin_only_mode,))
       conn.commit()
-      ADMIN_ONLY_MODE = admin_only_mode  # Update global variable
+      print(get_admin_only_mode())
+      ADMIN_ONLY_MODE = get_admin_only_mode()  # Update global variable
+      print(ADMIN_ONLY_MODE)
       return True  # Indicate successful update
   except psycopg2.Error as e:
       conn.rollback()
+      print(f"Error updating flags: {e}")
       return False  # Indicate update failure
   finally:
       cur.close()
@@ -1067,11 +1134,48 @@ def access_denied(e):
 def interalError():
   return render_template('500.html'), 500
 
+@app.route('/api/login', methods=['POST'])
+def api_login():
+  username = request.form.get('username')
+  password = request.form.get('password')
+  conn = psycopg2.connect(
+      dbname=os.environ['PGDATABASE'],
+      user=os.environ['PGUSER'],
+      password= os.environ['PGPASSWORD'],
+      host=os.environ['PGHOST']
+  )
+  cur = conn.cursor()
+  cur.execute("SELECT hashed_password, salt, admin_status FROM users WHERE username = %s", (username,))
+  result = cur.fetchone()
+
+
+  if result is None:
+    flash('Username or password incorrect', 'error')
+    return redirect('/')
+
+  hashed_password, salt, is_admin = result
+
+  if get_admin_only_mode() and not is_admin:
+    flash('Login restricted', 'error')
+    return redirect('/')
+
+  if bcrypt.checkpw(password.encode(), hashed_password.encode()):
+    cur.close()
+    flash('Login successful', 'success')
+    return {'username': username}
+  else:
+    flash('Username or password incorrect', 'error')
+    return 'Username or Password incorrect'
+  return 'Error'
+  
 
 
 #Mainpage
 @app.route('/')
 def login():
+  if 'username' in session:
+    return redirect('/dashboard')
+    
   return render_template('index.html')
 
 
@@ -1952,6 +2056,38 @@ def user_delete():
   flash("Account Deleted", "info")
   return redirect('/')
 
+def password_change(username,password,confirm_password):
+
+    conn = psycopg2.connect(
+    dbname=os.environ['PGDATABASE'],
+    user=os.environ['PGUSER'],
+    password= os.environ['PGPASSWORD'],
+    host=os.environ['PGHOST']
+  )
+    cur = conn.cursor()
+    if new_password != confirm_new_password:
+        flash('New passwords do not match', 'error')
+    elif len(new_password) < 6:
+        flash('New password must be at least 6 characters long', 'error')
+    else:
+
+        salt = bcrypt.gensalt().decode()
+        hashed_password = bcrypt.hashpw(new_password.encode(), salt.encode()).decode()
+
+        # Update the password in the database
+        conn = psycopg2.connect(
+            dbname=os.environ['PGDATABASE'],
+            user=os.environ['PGUSER'],
+            password=os.environ['PGPASSWORD'],
+            host=os.environ['PGHOST']
+        )
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET hashed_password = %s, salt = %s WHERE username = %s", (hashed_password, salt, username))
+        conn.commit()
+        conn.close()
+        flash('success')
+        return True
+
 
 @app.route('/change-password', methods=['POST'])
 def change_password():
@@ -2051,7 +2187,57 @@ def delete_old_password(username):
     for record in data:
       db_file.write(', '.join(record) + '\n')
 
-This code is deprecated, but im leaving it here :)
+This code is deprecated, but im leaving it here
+"""
+ongoing_calls = {}
+
+@socketio.on('call_invite')
+def handle_call_invite(data):
+    caller = request.sid
+    callee = data['callee']
+
+    if callee in ongoing_calls:
+        emit('call_busy', {'callee': callee})
+    else:
+        ongoing_calls[callee] = caller
+        emit('call_invite', {'caller': caller}, room=callee)
+
+@socketio.on('call_accept')
+def handle_call_accept():
+    caller = request.sid
+    callee = get_callee_from_caller(caller)
+
+    if callee:
+        emit('call_accepted', room=caller)
+        emit('call_accepted', room=callee)
+    else:
+        emit('call_failed', {'message': 'Call acceptance failed'}, room=caller)
+
+@socketio.on('call_decline')
+def handle_call_decline():
+    caller = request.sid
+    callee = get_callee_from_caller(caller)
+
+    if callee:
+        del ongoing_calls[callee]
+        emit('call_declined', room=caller)
+        emit('call_declined', room=callee)
+    else:
+        emit('call_failed', {'message': 'Call rejection failed'}, room=caller)
+
+def get_callee_from_caller(caller):
+    for callee, ongoing_caller in ongoing_calls.items():
+        if ongoing_caller == caller:
+            return callee
+    return None
+
+"""
+@app.route('/call')
+def call():
+    if 'username' not in session:
+      return redirect('/')
+    else:
+      return render_template('call.html')
 """
 
 if __name__ == "__main__":
